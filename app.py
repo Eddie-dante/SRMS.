@@ -62,7 +62,6 @@ def get_premium_css(wallpaper=None):
         section[data-testid="stSidebar"] .stButton button:hover {{ background: rgba(233,69,96,0.4) !important; border-color: rgba(233,69,96,0.6) !important; }}
         section[data-testid="stSidebar"] .streamlit-expanderHeader {{ background: rgba(212,175,55,0.2) !important; border: 1px solid rgba(212,175,55,0.3) !important; color: #FFD700 !important; font-weight: 700 !important; }}
         section[data-testid="stSidebar"] .streamlit-expanderContent {{ background: rgba(0,0,0,0.3) !important; border: 1px solid rgba(255,255,255,0.1) !important; }}
-        section[data-testid="stSidebar"] .stSelectbox > div > div {{ background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(212,175,55,0.3) !important; }}
         
         .main .block-container h1, .main .block-container h2, .main .block-container h3, .main .block-container h4 {{ color: #FFFFFF !important; text-shadow: 0 2px 10px rgba(0,0,0,0.6) !important; }}
         .main .block-container p, .main .block-container span, .main .block-container label {{ color: #FFFFFF !important; text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }}
@@ -135,6 +134,24 @@ def generate_code(prefix="", length=8):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+def is_admin():
+    """Check if current user is admin"""
+    return st.session_state.user and st.session_state.user.get('role') == 'admin'
+
+def add_audit_entry(action, details):
+    """Add entry to audit log"""
+    school_name = st.session_state.school['name']
+    audit_log = load_data(f"audit_log_{school_name}.json", [])
+    audit_log.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "user": st.session_state.user['name'],
+        "action": action,
+        "details": details
+    })
+    if len(audit_log) > 500:
+        audit_log = audit_log[-500:]
+    save_data(f"audit_log_{school_name}.json", audit_log)
+
 # ============== STARTUP PAGE ==============
 def startup_page():
     st.markdown("""
@@ -197,6 +214,7 @@ def login_form():
             st.session_state.school = school
             st.session_state.page = 'dashboard'
             st.session_state.action = None
+            add_audit_entry('Login', f"{user['name']} logged in as {user['role']}")
             st.rerun()
 
 def signup_form():
@@ -236,6 +254,7 @@ def signup_form():
             st.session_state.school = school
             st.session_state.page = 'dashboard'
             st.session_state.action = None
+            add_audit_entry('Signup', f"{name} signed up as teacher")
             st.success("Registration successful!")
             st.rerun()
 
@@ -281,6 +300,7 @@ def create_school_form():
             st.session_state.school = school
             st.session_state.page = 'dashboard'
             st.session_state.action = None
+            add_audit_entry('School Created', f"{school_name} created by {admin_name}")
             st.success(f"School created! Code: {invite_code}")
             st.rerun()
 
@@ -297,7 +317,7 @@ def dashboard_page():
     </div>
     """, unsafe_allow_html=True)
     
-    if user['role'] == 'admin':
+    if is_admin():
         st.markdown(f"""
         <div class="school-code-banner">
             <p style="color:#FFF;font-size:0.9em;">🏫 School Invite Code - Share with Staff</p>
@@ -387,6 +407,7 @@ def dashboard_page():
         
         st.markdown("---")
         if st.button("🚪 Logout", use_container_width=True, key="nav_logout", type="primary"):
+            add_audit_entry('Logout', st.session_state.user['name'])
             st.session_state.user = None
             st.session_state.school = None
             st.session_state.page = 'startup'
@@ -481,9 +502,11 @@ def render_book_issuing():
     
     col1, col2 = st.columns(2)
     with col1:
-        selected_book = st.selectbox("Book:", [b['title'] for b in books if b.get('quantity', 0) > 0], key="bi_book_select")
+        book_options = [b['title'] for b in books if b.get('quantity', 0) > 0]
+        selected_book = st.selectbox("Book:", book_options if book_options else ["No books available"], key="bi_book_select")
     with col2:
-        selected_class = st.selectbox("Class:", [c['name'] for c in classes], key="bi_class_select")
+        class_options = [c['name'] for c in classes]
+        selected_class = st.selectbox("Class:", class_options if class_options else ["No classes"], key="bi_class_select")
     
     col3, col4 = st.columns(2)
     with col3:
@@ -492,15 +515,17 @@ def render_book_issuing():
         return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="bi_return_date_input")
     
     if st.button("📋 Load", use_container_width=True, key="bi_load_btn"):
-        class_data = next((c for c in classes if c['name'] == selected_class), None)
-        if class_data:
-            st.session_state.bi_students = class_data.get('students', [])
-            st.success(f"Loaded {len(st.session_state.bi_students)} students!")
+        if selected_class != "No classes":
+            class_data = next((c for c in classes if c['name'] == selected_class), None)
+            if class_data:
+                st.session_state.bi_students = class_data.get('students', [])
+                st.success(f"Loaded {len(st.session_state.bi_students)} students!")
     
     if 'bi_students' in st.session_state:
         students = st.session_state.bi_students
         if students:
             df = pd.DataFrame(students)
+            col_names = df.columns.tolist()
             df['Book No'] = ""
             df['Issue'] = False
             edited_df = st.data_editor(df, use_container_width=True, key="bi_editor")
@@ -508,15 +533,22 @@ def render_book_issuing():
             if st.button("✅ Issue", use_container_width=True, key="bi_issue_btn"):
                 count = 0
                 borrowed = load_data(f"borrowed_{school_name}.json", [])
+                
+                # Get first column as name, second as adm
+                name_col = col_names[0] if col_names else 'name'
+                adm_col = col_names[1] if len(col_names) > 1 else 'adm'
+                
                 for _, row in edited_df.iterrows():
-                    if row['Issue'] and row['Book No']:
+                    if row.get('Issue') and row.get('Book No'):
                         book = next((b for b in books if b['title'] == selected_book), None)
                         if book and book['quantity'] > 0:
                             borrowed.append({
-                                "name": row['name'],
-                                "adm": row.get('adm', ''),
+                                "name": str(row.get(name_col, '')),
+                                "adm": str(row.get(adm_col, '')),
+                                "form": str(row.get('form', row.get('Form', ''))),
+                                "stream": str(row.get('stream', row.get('Stream', ''))),
                                 "bookTitle": selected_book,
-                                "bookNo": row['Book No'],
+                                "bookNo": str(row.get('Book No', '')),
                                 "borrowDate": issue_date.strftime('%Y-%m-%d'),
                                 "returnDate": return_date.strftime('%Y-%m-%d'),
                                 "returned": False,
@@ -524,8 +556,10 @@ def render_book_issuing():
                             })
                             book['quantity'] = book['quantity'] - 1
                             count = count + 1
+                
                 save_data(f"borrowed_{school_name}.json", borrowed)
                 save_data(f"books_{school_name}.json", books)
+                add_audit_entry('Books Issued', f"{count} copies of '{selected_book}' to {selected_class}")
                 st.success(f"Issued {count} books!")
                 if 'bi_students' in st.session_state:
                     del st.session_state.bi_students
@@ -547,7 +581,8 @@ def render_individual_lending():
             form = st.text_input("Form:", placeholder="Class/Form", key="il_form")
         with col2:
             stream = st.text_input("Stream:", placeholder="Stream", key="il_stream")
-            selected_book = st.selectbox("Book:", [b['title'] for b in books if b.get('quantity', 0) > 0], key="il_book_select")
+            book_options = [b['title'] for b in books if b.get('quantity', 0) > 0]
+            selected_book = st.selectbox("Book:", book_options if book_options else ["No books"], key="il_book_select")
             book_no = st.text_input("Book No:", placeholder="Book number", key="il_book_no")
         
         col3, col4 = st.columns(2)
@@ -557,25 +592,21 @@ def render_individual_lending():
             return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="il_return_date")
         
         if st.form_submit_button("📖 Lend Book", use_container_width=True):
-            if name and selected_book:
+            if name and selected_book and selected_book != "No books":
                 borrowed = load_data(f"borrowed_{school_name}.json", [])
                 book = next((b for b in books if b['title'] == selected_book), None)
                 if book and book['quantity'] > 0:
                     borrowed.append({
-                        "name": name,
-                        "adm": adm,
-                        "form": form,
-                        "stream": stream,
-                        "bookTitle": selected_book,
-                        "bookNo": book_no,
+                        "name": name, "adm": adm, "form": form, "stream": stream,
+                        "bookTitle": selected_book, "bookNo": book_no,
                         "borrowDate": borrow_date.strftime('%Y-%m-%d'),
                         "returnDate": return_date.strftime('%Y-%m-%d'),
-                        "returned": False,
-                        "id": generate_code("BOR")
+                        "returned": False, "id": generate_code("BOR")
                     })
                     book['quantity'] = book['quantity'] - 1
                     save_data(f"borrowed_{school_name}.json", borrowed)
                     save_data(f"books_{school_name}.json", books)
+                    add_audit_entry('Lend Book', f"{name} borrowed '{selected_book}'")
                     st.success("Book lent successfully!")
                     st.rerun()
                 else:
@@ -585,8 +616,17 @@ def render_individual_lending():
     st.markdown("### Recent Lendings")
     borrowed = load_data(f"borrowed_{school_name}.json", [])
     if borrowed:
-        df = pd.DataFrame(borrowed[-10:])
-        st.dataframe(df, use_container_width=True)
+        filt = st.radio("Show:", ["All", "Active", "Returned"], horizontal=True, key="il_filter")
+        if filt == "Active":
+            display_data = [b for b in borrowed if not b.get('returned')]
+        elif filt == "Returned":
+            display_data = [b for b in borrowed if b.get('returned')]
+        else:
+            display_data = borrowed
+        if display_data:
+            st.dataframe(pd.DataFrame(display_data[-20:]), use_container_width=True)
+    else:
+        st.info("No lending records")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -596,7 +636,13 @@ def render_furniture():
     
     st.markdown('<div class="glass-card"><h2>🪑 Furniture Allocation</h2>', unsafe_allow_html=True)
     
-    selected_class = st.selectbox("Class:", [c['name'] for c in classes], key="fur_class_select")
+    class_options = [c['name'] for c in classes]
+    if not class_options:
+        st.warning("No classes available. Import class lists first.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+    
+    selected_class = st.selectbox("Class:", class_options, key="fur_class_select")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -620,6 +666,7 @@ def render_furniture():
         students = st.session_state.fur_students
         if students:
             df = pd.DataFrame(students)
+            col_names = df.columns.tolist()
             df['Chair No'] = ""
             df['Locker No'] = ""
             df['Allocate'] = False
@@ -628,19 +675,24 @@ def render_furniture():
             if st.button("✅ Assign", use_container_width=True, key="fur_assign_btn"):
                 count = 0
                 furniture = load_data(f"furniture_{school_name}.json", [])
+                name_col = col_names[0] if col_names else 'name'
+                adm_col = col_names[1] if len(col_names) > 1 else 'adm'
+                
                 for _, row in edited_df.iterrows():
-                    if row['Allocate']:
+                    if row.get('Allocate'):
                         furniture.append({
-                            "name": row['name'],
-                            "adm": row.get('adm', ''),
-                            "chair": f"{chair_prefix}{row['Chair No']}" if row['Chair No'] else "",
-                            "locker": f"{locker_prefix}{row['Locker No']}" if row['Locker No'] else "",
+                            "name": str(row.get(name_col, '')),
+                            "adm": str(row.get(adm_col, '')),
+                            "chair": f"{chair_prefix}{row.get('Chair No', '')}" if row.get('Chair No') else "",
+                            "locker": f"{locker_prefix}{row.get('Locker No', '')}" if row.get('Locker No') else "",
                             "date": alloc_date.strftime('%Y-%m-%d'),
                             "returned": False,
                             "id": generate_code("FUR")
                         })
                         count = count + 1
+                
                 save_data(f"furniture_{school_name}.json", furniture)
+                add_audit_entry('Furniture Allocated', f"{count} items to {selected_class}")
                 st.success(f"Allocated {count} items!")
                 if 'fur_students' in st.session_state:
                     del st.session_state.fur_students
@@ -649,13 +701,19 @@ def render_furniture():
     # Show current allocations
     st.markdown("### Current Allocations")
     furniture = load_data(f"furniture_{school_name}.json", [])
-    active_furniture = [f for f in furniture if not f.get('returned')]
-    if active_furniture:
-        df = pd.DataFrame(active_furniture)
-        st.dataframe(df, use_container_width=True)
+    filt = st.radio("Show:", ["All", "Active", "Returned"], horizontal=True, key="fur_filter")
+    if filt == "Active":
+        display_data = [f for f in furniture if not f.get('returned')]
+    elif filt == "Returned":
+        display_data = [f for f in furniture if f.get('returned')]
+    else:
+        display_data = furniture
+    
+    if display_data:
+        st.dataframe(pd.DataFrame(display_data), use_container_width=True)
         if st.button("📎 Export", use_container_width=True, key="fur_export"):
             towrite = BytesIO()
-            df.to_excel(towrite, index=False, engine='openpyxl')
+            pd.DataFrame(display_data).to_excel(towrite, index=False, engine='openpyxl')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
             st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="furniture.xlsx">📥 Download</a>', unsafe_allow_html=True)
@@ -691,9 +749,9 @@ def render_returns():
             for item in active_books:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    st.write(f"**{item['name']}** - {item['bookTitle']} (#{item['bookNo']})")
+                    st.write(f"**{item['name']}** - {item['bookTitle']} (#{item.get('bookNo', '')})")
                 with col2:
-                    st.write(f"Due: {item['returnDate']}")
+                    st.write(f"Due: {item.get('returnDate', '')}")
                 with col3:
                     if st.button("Return", key=f"ret_book_{item['id']}"):
                         item['returned'] = True
@@ -704,6 +762,7 @@ def render_returns():
                             book['quantity'] = book['quantity'] + 1
                         save_data(f"books_{school_name}.json", books)
                         save_data(f"borrowed_{school_name}.json", borrowed)
+                        add_audit_entry('Book Returned', f"{item['name']} returned '{item['bookTitle']}'")
                         st.success("Book returned!")
                         st.rerun()
                 st.divider()
@@ -717,11 +776,12 @@ def render_returns():
                 with col1:
                     st.write(f"**{item['name']}** - Chair: {item.get('chair', '-')}, Locker: {item.get('locker', '-')}")
                 with col2:
-                    st.write(f"Date: {item['date']}")
+                    st.write(f"Date: {item.get('date', '')}")
                 with col3:
                     if st.button("Return", key=f"ret_fur_{item['id']}"):
                         item['returned'] = True
                         save_data(f"furniture_{school_name}.json", furniture)
+                        add_audit_entry('Furniture Returned', f"{item['name']} returned items")
                         st.success("Furniture returned!")
                         st.rerun()
                 st.divider()
@@ -749,7 +809,7 @@ def render_borrowed():
     
     search = st.text_input("Search...", placeholder="Search by name, ADM, or book", key="bor_search")
     if search:
-        filtered = [b for b in filtered if search.lower() in b.get('name', '').lower() or search in b.get('adm', '') or search.lower() in b.get('bookTitle', '').lower()]
+        filtered = [b for b in filtered if search.lower() in str(b.get('name', '')).lower() or search in str(b.get('adm', '')) or search.lower() in str(b.get('bookTitle', '')).lower()]
     
     if filtered:
         st.dataframe(pd.DataFrame(filtered), use_container_width=True)
@@ -780,22 +840,27 @@ def render_members():
             if name:
                 members.append({"name": name, "id": mid or generate_code("MEM")})
                 save_data(f"members_{school_name}.json", members)
+                add_audit_entry('Member Added', name)
                 st.success("Added!")
                 st.rerun()
     
     search = st.text_input("Search...", placeholder="Search members", key="mem_search")
     filtered = [m for m in members if not search or search.lower() in m['name'].lower() or search in m.get('id', '')]
     
-    for i, m in enumerate(filtered):
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.write(f"**{m['name']}** {f'({m["id"]})' if m.get('id') else ''}")
-        with col2:
-            if st.button("🗑️", key=f"del_mem_{i}"):
-                members.remove(m)
-                save_data(f"members_{school_name}.json", members)
-                st.rerun()
-        st.divider()
+    if filtered:
+        for i, m in enumerate(filtered):
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(f"**{m['name']}** {f'({m["id"]})' if m.get('id') else ''}")
+            with col2:
+                if st.button("🗑️", key=f"del_mem_{i}"):
+                    members.remove(m)
+                    save_data(f"members_{school_name}.json", members)
+                    add_audit_entry('Member Removed', m['name'])
+                    st.rerun()
+            st.divider()
+    else:
+        st.info("No members found")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -815,29 +880,34 @@ def render_catalog():
             qty = st.number_input("Qty:", 1, 1000, 1, key="cat_qty")
         if st.form_submit_button("📖 Add Book", use_container_width=True):
             if title:
-                existing = next((b for b in books if b['title'] == title), None)
+                existing = next((b for b in books if b['title'].lower() == title.lower()), None)
                 if existing:
-                    existing['quantity'] = existing['quantity'] + qty
+                    existing['quantity'] = existing.get('quantity', 0) + qty
                 else:
                     books.append({"title": title, "type": btype, "quantity": qty})
                 save_data(f"books_{school_name}.json", books)
-                st.success("Added!")
+                add_audit_entry('Book Added', f"{title} (Qty: {qty})")
+                st.success("Book added/updated!")
                 st.rerun()
     
-    for i, b in enumerate(books):
-        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
-        with col1:
-            st.write(f"📖 **{b['title']}**")
-        with col2:
-            st.write(b['type'])
-        with col3:
-            st.write(f"Qty: {b['quantity']}")
-        with col4:
-            if st.button("🗑️", key=f"del_book_{i}"):
-                books.pop(i)
-                save_data(f"books_{school_name}.json", books)
-                st.rerun()
-        st.divider()
+    if books:
+        for i, b in enumerate(books):
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            with col1:
+                st.write(f"📖 **{b['title']}**")
+            with col2:
+                st.write(b.get('type', '-'))
+            with col3:
+                st.write(f"Qty: {b.get('quantity', 0)}")
+            with col4:
+                if st.button("🗑️", key=f"del_book_{i}"):
+                    add_audit_entry('Book Removed', b['title'])
+                    books.pop(i)
+                    save_data(f"books_{school_name}.json", books)
+                    st.rerun()
+            st.divider()
+    else:
+        st.info("No books in catalog")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -860,12 +930,10 @@ def render_teachers():
         if st.form_submit_button("➕ Add", use_container_width=True):
             if name:
                 teachers.append({
-                    "name": name,
-                    "subject": subject,
-                    "classes": classes,
-                    "duty": duty
+                    "name": name, "subject": subject, "classes": classes, "duty": duty
                 })
                 save_data(f"teachers_{school_name}.json", teachers)
+                add_audit_entry('Teacher Added', name)
                 st.success("Added!")
                 st.rerun()
     
@@ -882,6 +950,7 @@ def render_teachers():
                 st.write(t.get('duty', '-'))
             with col5:
                 if st.button("🗑️", key=f"del_tea_{i}"):
+                    add_audit_entry('Teacher Removed', t['name'])
                     teachers.pop(i)
                     save_data(f"teachers_{school_name}.json", teachers)
                     st.rerun()
@@ -898,7 +967,7 @@ def render_classes():
     st.markdown('<div class="glass-card"><h2>📋 Class Lists</h2>', unsafe_allow_html=True)
     
     st.markdown("### Import Excel")
-    uploaded = st.file_uploader("📥 Import Excel File", type=['xlsx', 'xls'], key="cls_upload")
+    uploaded = st.file_uploader("📥 Import Excel File (.xlsx, .xls)", type=['xlsx', 'xls'], key="cls_upload")
     if uploaded is not None:
         df = pd.read_excel(uploaded)
         st.write("Preview:")
@@ -907,22 +976,33 @@ def render_classes():
         class_name = st.text_input("Class name:", placeholder="e.g., Grade 4A", key="cls_name_input")
         if st.button("💾 Save", use_container_width=True, key="cls_save_btn"):
             if class_name:
+                students = []
+                for _, row in df.iterrows():
+                    student = {}
+                    for col in df.columns:
+                        student[col] = str(row[col]) if not pd.isna(row[col]) else ""
+                    students.append(student)
+                
                 classes.append({
                     "name": class_name,
-                    "students": df.to_dict('records'),
+                    "students": students,
+                    "created_by": st.session_state.user['name'],
                     "created": datetime.now().strftime("%Y-%m-%d")
                 })
                 save_data(f"classes_{school_name}.json", classes)
-                st.success(f"Saved '{class_name}' with {len(df)} students!")
+                add_audit_entry('Class Added', f"{class_name} ({len(students)} students)")
+                st.success(f"Saved '{class_name}' with {len(students)} students!")
                 st.rerun()
     
     st.markdown("### Saved Lists")
     if classes:
         for i, cls in enumerate(classes):
-            with st.expander(f"📋 {cls['name']} ({len(cls.get('students', []))} students)"):
+            created_info = f"by {cls.get('created_by', 'Unknown')} on {cls.get('created', 'Unknown')}"
+            with st.expander(f"📋 {cls['name']} ({len(cls.get('students', []))} students) - {created_info}"):
                 if cls.get('students'):
                     st.dataframe(pd.DataFrame(cls['students']), use_container_width=True)
                 if st.button("🗑️ Delete Class", key=f"del_cls_{i}"):
+                    add_audit_entry('Class Removed', cls['name'])
                     classes.pop(i)
                     save_data(f"classes_{school_name}.json", classes)
                     st.rerun()
@@ -973,15 +1053,20 @@ def render_chat():
     
     st.markdown('<div class="glass-card"><h2>💬 Staff Chat</h2>', unsafe_allow_html=True)
     
+    # Admin can see all users, others see everyone
     other_users = [u for u in users if u['email'] != user['email']]
     
     col1, col2 = st.columns([1, 3])
     
     with col1:
         st.markdown("### 👥 Staff Online")
-        for u in other_users:
-            if st.button(f"🟢 {u['name']}\n({u['role']})", key=f"chat_user_{u['email']}", use_container_width=True):
-                st.session_state.chat_with = u['email']
+        if other_users:
+            for u in other_users:
+                role_icon = "👑" if u['role'] == 'admin' else "👨‍🏫" if u['role'] == 'teacher' else "📚"
+                if st.button(f"{role_icon} {u['name']}\n({u['role']})", key=f"chat_user_{u['email']}", use_container_width=True):
+                    st.session_state.chat_with = u['email']
+        else:
+            st.info("No other staff members")
     
     with col2:
         if 'chat_with' in st.session_state:
@@ -989,7 +1074,7 @@ def render_chat():
             chat_user = next((u for u in users if u['email'] == chat_with), None)
             
             if chat_user:
-                st.markdown(f"### 💬 Chat with {chat_user['name']}")
+                st.markdown(f"### 💬 Chat with {chat_user['name']} ({chat_user['role']})")
                 
                 msgs = [m for m in messages if (m['from'] == user['email'] and m['to'] == chat_with) or (m['from'] == chat_with and m['to'] == user['email'])]
                 
@@ -1001,7 +1086,7 @@ def render_chat():
                     st.markdown(f"""
                     <div style="display:flex;justify-content:{align};margin:8px 0;">
                         <div style="background:{bg_color};padding:10px 16px;border-radius:16px;max-width:70%;color:#FFF;">
-                            <strong>{msg['from_name']}:</strong> {msg['message']}
+                            <strong>{msg.get('from_name', msg['from'])}:</strong> {msg['message']}
                             <br><small style="color:rgba(255,255,255,0.5);">{msg['timestamp'][:16]}</small>
                         </div>
                     </div>
@@ -1047,23 +1132,23 @@ def render_system_overview():
     
     with col1:
         st.markdown(f"""
-        <div class="stat-card">
-            <strong>🏫 School</strong><br>
-            {st.session_state.school['name']}<br>
-            📍 {st.session_state.school.get('address', 'N/A')}<br>
-            👤 Admin: {st.session_state.school['admin_name']}<br>
-            📧 {st.session_state.school['admin_email']}
+        <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);margin:5px 0;">
+            <strong style="color:#d4af37;">🏫 School</strong><br>
+            <span style="color:#FFF;">{st.session_state.school['name']}</span><br>
+            <span style="color:#FFF;">📍 {st.session_state.school.get('address', 'N/A')}</span><br>
+            <span style="color:#FFF;">👤 Admin: {st.session_state.school['admin_name']}</span><br>
+            <span style="color:#FFF;">📧 {st.session_state.school['admin_email']}</span>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
-        <div class="stat-card">
-            <strong>📚 Books</strong><br>
-            Total: {total_books}<br>
-            Active Loans: {active_loans}<br>
-            Overdue: {overdue_count}<br>
-            Available: {total_books - active_loans}
+        <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);margin:5px 0;">
+            <strong style="color:#d4af37;">📚 Books</strong><br>
+            <span style="color:#FFF;">Total: {total_books}</span><br>
+            <span style="color:#FFF;">Active Loans: {active_loans}</span><br>
+            <span style="color:#FFF;">Overdue: {overdue_count}</span><br>
+            <span style="color:#FFF;">Available: {total_books - active_loans}</span>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1071,11 +1156,11 @@ def render_system_overview():
         chairs = len([f for f in furniture if not f.get('returned') and f.get('chair')])
         lockers = len([f for f in furniture if not f.get('returned') and f.get('locker')])
         st.markdown(f"""
-        <div class="stat-card">
-            <strong>🪑 Furniture</strong><br>
-            Active Allocations: {active_furniture}<br>
-            Chairs: {chairs}<br>
-            Lockers: {lockers}
+        <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);margin:5px 0;">
+            <strong style="color:#d4af37;">🪑 Furniture</strong><br>
+            <span style="color:#FFF;">Active: {active_furniture}</span><br>
+            <span style="color:#FFF;">Chairs: {chairs}</span><br>
+            <span style="color:#FFF;">Lockers: {lockers}</span>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1083,31 +1168,31 @@ def render_system_overview():
     
     with col4:
         st.markdown(f"""
-        <div class="stat-card">
-            <strong>👥 People</strong><br>
-            Staff: {len(users)}<br>
-            Teachers: {len(teachers)}<br>
-            Members: {len(members)}<br>
-            Classes: {len(classes)}
+        <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);margin:5px 0;">
+            <strong style="color:#d4af37;">👥 People</strong><br>
+            <span style="color:#FFF;">Staff: {len(users)}</span><br>
+            <span style="color:#FFF;">Teachers: {len(teachers)}</span><br>
+            <span style="color:#FFF;">Members: {len(members)}</span><br>
+            <span style="color:#FFF;">Classes: {len(classes)}</span>
         </div>
         """, unsafe_allow_html=True)
     
     with col5:
         st.markdown(f"""
-        <div class="stat-card">
-            <strong>💬 Communication</strong><br>
-            Messages: {len(messages)}<br>
-            Invite Code: {st.session_state.school['invite_code']}
+        <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);margin:5px 0;">
+            <strong style="color:#d4af37;">💬 Communication</strong><br>
+            <span style="color:#FFF;">Messages: {len(messages)}</span><br>
+            <span style="color:#FFF;">Invite Code: {st.session_state.school['invite_code']}</span>
         </div>
         """, unsafe_allow_html=True)
     
     with col6:
         st.markdown(f"""
-        <div class="stat-card">
-            <strong>📝 Activity</strong><br>
-            Log Entries: {len(audit_log)}<br>
-            Books Issued: {len(borrowed)}<br>
-            Furniture Records: {len(furniture)}
+        <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);margin:5px 0;">
+            <strong style="color:#d4af37;">📝 Activity</strong><br>
+            <span style="color:#FFF;">Log Entries: {len(audit_log)}</span><br>
+            <span style="color:#FFF;">Books Issued: {len(borrowed)}</span><br>
+            <span style="color:#FFF;">Furniture Records: {len(furniture)}</span>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1119,14 +1204,20 @@ def render_audit_log():
     
     st.markdown('<div class="glass-card"><h2>📝 Audit Log</h2>', unsafe_allow_html=True)
     
+    # Only admin can see audit log
+    if not is_admin():
+        st.warning("Only administrators can view the audit log.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+    
     search = st.text_input("Search...", placeholder="Search log entries", key="log_search")
     
     filtered = audit_log
     if search:
-        filtered = [e for e in audit_log if search.lower() in e.get('action', '').lower() or search.lower() in e.get('details', '').lower() or search.lower() in e.get('user', '').lower()]
+        filtered = [e for e in audit_log if search.lower() in str(e.get('action', '')).lower() or search.lower() in str(e.get('details', '')).lower() or search.lower() in str(e.get('user', '')).lower()]
     
     if filtered:
-        st.dataframe(pd.DataFrame(filtered[-100:]), use_container_width=True)
+        st.dataframe(pd.DataFrame(list(reversed(filtered[-100:]))), use_container_width=True)
         if st.button("📎 Export", use_container_width=True, key="log_export_btn"):
             towrite = BytesIO()
             pd.DataFrame(filtered).to_excel(towrite, index=False, engine='openpyxl')
@@ -1150,6 +1241,12 @@ def render_reports():
             borrowed = load_data(f"borrowed_{school_name}.json", [])
             if borrowed:
                 st.dataframe(pd.DataFrame(borrowed), use_container_width=True)
+                if st.button("📎 Export Books Report", use_container_width=True, key="rep_export_books"):
+                    towrite = BytesIO()
+                    pd.DataFrame(borrowed).to_excel(towrite, index=False, engine='openpyxl')
+                    towrite.seek(0)
+                    b64 = base64.b64encode(towrite.read()).decode()
+                    st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="books_report.xlsx">📥 Download</a>', unsafe_allow_html=True)
             else:
                 st.info("No book records")
         
@@ -1173,13 +1270,23 @@ def render_reports():
             borrowed = load_data(f"borrowed_{school_name}.json", [])
             furniture = load_data(f"furniture_{school_name}.json", [])
             teachers = load_data(f"teachers_{school_name}.json", [])
+            members = load_data(f"members_{school_name}.json", [])
+            books = load_data(f"books_{school_name}.json", [])
             
             today = datetime.now()
             active_books = len([b for b in borrowed if not b.get('returned')])
             overdue_books = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today])
             active_furniture = len([f for f in furniture if not f.get('returned')])
             
-            st.write(f"📚 Active: {active_books} | 🔴 Overdue: {overdue_books} | 🪑 Furniture: {active_furniture} | 👨‍🏫 Teachers: {len(teachers)}")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📚 Total Books", sum(b.get('quantity', 0) for b in books))
+            with col2:
+                st.metric("📖 Active Loans", active_books)
+            with col3:
+                st.metric("🔴 Overdue", overdue_books)
+            with col4:
+                st.metric("🪑 Furniture", active_furniture)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1208,7 +1315,7 @@ def render_settings():
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📥 Backup", use_container_width=True, key="set_backup_btn"):
+            if st.button("📥 Backup All Data", use_container_width=True, key="set_backup_btn"):
                 all_data = {}
                 for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages"]:
                     all_data[f] = load_data(f"{f}_{school_name}.json", [])
@@ -1224,68 +1331,86 @@ def render_settings():
                         data = json.load(uploaded_file)
                         for f, fd in data.items():
                             save_data(f"{f}_{school_name}.json", fd)
+                        add_audit_entry('Data Restored', 'Backup restored')
                         st.success("Data restored successfully!")
                         st.rerun()
-                    except:
-                        st.error("Invalid backup file!")
+                    except Exception as e:
+                        st.error(f"Invalid backup file! Error: {str(e)}")
         
         with col3:
-            st.markdown("#### ⚠️ Danger Zone")
-            confirm_text = st.text_input("Type 'DELETE' to confirm:", placeholder="DELETE", key="set_delete_confirm")
-            if st.button("⚠️ Clear All Data", use_container_width=True, key="set_clear_btn"):
-                if confirm_text == "DELETE":
-                    for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages"]:
-                        save_data(f"{f}_{school_name}.json", [])
-                    st.error("All data cleared!")
-                    st.rerun()
-                else:
-                    st.warning("Type 'DELETE' to confirm")
+            if is_admin():
+                st.markdown("#### ⚠️ Danger Zone")
+                confirm_text = st.text_input("Type 'DELETE' to confirm:", placeholder="DELETE", key="set_delete_confirm")
+                if st.button("⚠️ Clear All Data", use_container_width=True, key="set_clear_btn"):
+                    if confirm_text == "DELETE":
+                        for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages"]:
+                            save_data(f"{f}_{school_name}.json", [])
+                        add_audit_entry('Data Cleared', 'All data deleted')
+                        st.error("All data cleared!")
+                        st.rerun()
+                    else:
+                        st.warning("Type 'DELETE' to confirm")
     
     with tab3:
         st.markdown("### 👥 Staff Management")
         
-        with st.form("frm_staff_settings"):
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                email = st.text_input("Email:", placeholder="staff@school.edu", key="set_staff_email")
-            with col2:
-                name = st.text_input("Name:", placeholder="Staff name", key="set_staff_name")
-            with col3:
-                role = st.selectbox("Role:", ["teacher", "librarian", "admin"], key="set_staff_role")
-            with col4:
-                password = st.text_input("Password:", placeholder="Auto-generated", key="set_staff_password")
-            
-            if st.form_submit_button("➕ Create Staff", use_container_width=True):
-                if email and name:
-                    users = load_data(f"users_{school_name}.json", [])
-                    users.append({
-                        "name": name,
-                        "email": email,
-                        "role": role,
-                        "code": st.session_state.school['invite_code'],
-                        "password": hash_password(password or generate_code("", 8)),
-                        "staff_id": f"{role.upper()}-{generate_code('', 4)}",
-                        "joined": datetime.now().strftime("%Y-%m-%d"),
-                        "phone": ""
-                    })
-                    save_data(f"users_{school_name}.json", users)
-                    st.success(f"Created {role}: {name}")
-                    st.rerun()
+        if is_admin():
+            with st.form("frm_staff_settings"):
+                st.markdown("#### Add New Staff Member")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    email = st.text_input("Email:", placeholder="staff@school.edu", key="set_staff_email")
+                with col2:
+                    name = st.text_input("Name:", placeholder="Staff name", key="set_staff_name")
+                with col3:
+                    role = st.selectbox("Role:", ["teacher", "librarian", "admin"], key="set_staff_role")
+                with col4:
+                    password = st.text_input("Password:", placeholder="Auto-generated if empty", key="set_staff_password")
+                
+                if st.form_submit_button("➕ Create Staff", use_container_width=True):
+                    if email and name:
+                        users = load_data(f"users_{school_name}.json", [])
+                        if any(u['email'] == email for u in users):
+                            st.error("Email already exists!")
+                        else:
+                            generated_pw = password if password else generate_code("", 8)
+                            users.append({
+                                "name": name, "email": email, "role": role,
+                                "code": st.session_state.school['invite_code'],
+                                "password": hash_password(generated_pw),
+                                "staff_id": f"{role.upper()}-{generate_code('', 4)}",
+                                "joined": datetime.now().strftime("%Y-%m-%d"), "phone": ""
+                            })
+                            save_data(f"users_{school_name}.json", users)
+                            add_audit_entry('Staff Created', f"{name} as {role}")
+                            st.success(f"Created {role}: {name}" + (f" (Password: {generated_pw})" if not password else ""))
+                            st.rerun()
         
+        # Show all staff
         users = load_data(f"users_{school_name}.json", [])
         st.markdown("#### Current Staff")
+        
+        # Admin can see and manage everyone
         for i, u in enumerate(users):
-            col1, col2, col3 = st.columns([3, 1, 1])
+            role_icon = "👑" if u['role'] == 'admin' else "👨‍🏫" if u['role'] == 'teacher' else "📚"
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
             with col1:
-                st.write(f"**{u['name']}** - {u['role'].upper()} - {u['email']}")
+                st.write(f"{role_icon} **{u['name']}** - {u['role'].upper()}")
+                st.write(f"📧 {u.get('email', 'N/A')}")
             with col2:
                 st.write(f"ID: {u.get('staff_id', 'N/A')}")
             with col3:
-                if u['role'] != 'admin' or len([x for x in users if x['role'] == 'admin']) > 1:
-                    if st.button("🗑️", key=f"del_staff_{i}"):
-                        users.pop(i)
-                        save_data(f"users_{school_name}.json", users)
-                        st.rerun()
+                st.write(f"Joined: {u.get('joined', 'N/A')}")
+            with col4:
+                # Admin can delete other users, but not the last admin
+                if is_admin() and u['email'] != st.session_state.user['email']:
+                    admin_count = len([x for x in users if x['role'] == 'admin'])
+                    if u['role'] != 'admin' or admin_count > 1:
+                        if st.button("🗑️", key=f"del_staff_{i}"):
+                            add_audit_entry('Staff Removed', f"{u['name']} ({u['role']})")
+                            users.pop(i)
+                            save_data(f"users_{school_name}.json", users)
+                            st.rerun()
             st.divider()
     
     st.markdown('</div>', unsafe_allow_html=True)
