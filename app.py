@@ -20,61 +20,424 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS matching your HTML style
-st.markdown("""
-<style>
-    /* Your existing CSS styles */
-    :root {
-        --primary: #0a0e27;
-        --accent: #e94560;
-        --gold: #d4af37;
-    }
-    
-    .stApp {
+# ============ ENHANCED WALLPAPERS ============
+WALLPAPERS = {
+    "None": "",
+    "Abstract Waves": "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920",
+    "Geometric Pattern": "https://images.unsplash.com/photo-1557683311-eac922347aa1?w=1920",
+    "Nature Leaves": "https://images.unsplash.com/photo-1557683316-973673baf926?w=1920",
+    "Starry Night": "https://images.unsplash.com/photo-1557683320-2d5001d5e9c5?w=1920",
+    "Color Splash": "https://images.unsplash.com/photo-1557683304-6733ba7e4d6f?w=1920",
+    "Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
+    "Mountains": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920",
+    "Ocean": "https://images.unsplash.com/photo-1507525425510-56b1e2d6c4f2?w=1920",
+    "Desert": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920",
+    "City Lights": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920",
+    "Aurora": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920",
+    "Galaxy": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
+    "Sunset": "https://images.unsplash.com/photo-1506815444479-bfdb1e96c566?w=1920",
+    "Rainbow": "https://images.unsplash.com/photo-1511300636408-a63a89df3482?w=1920",
+    "Clouds": "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?w=1920",
+    "Stars": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
+    "Library": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920",
+    "Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920",
+    "School Building": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920",
+    "Study Desk": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920",
+    "Sunset Mountains": "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920",
+    "Tropical Beach": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
+    "Misty Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
+    "Mountain Lake": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
+    "Night Sky": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
+    "Purple Haze": "https://images.unsplash.com/photo-1557682257-2f9c97a8a469?w=1920",
+    "Green Valley": "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1920",
+    "Autumn Road": "https://images.unsplash.com/photo-1507783548227-544c3b8fc065?w=1920",
+    "Winter Snow": "https://images.unsplash.com/photo-1477601263568-180e2c6d046e?w=1920",
+    "Spring Flowers": "https://images.unsplash.com/photo-1490750967868-88aa4cef14d0?w=1920",
+    "Summer Field": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920",
+    "Waterfall": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
+    "Canyon": "https://images.unsplash.com/photo-1474044159687-1ee9f3a51722?w=1920",
+    "Lavender Field": "https://images.unsplash.com/photo-1499002238440-d264edd596ec?w=1920",
+    "Cherry Blossom": "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920",
+    "Palm Trees": "https://images.unsplash.com/photo-1509233725247-49e657c54213?w=1920",
+    "Foggy Morning": "https://images.unsplash.com/photo-1485230405346-71acb9518d9b?w=1920",
+    "Golden Hour": "https://images.unsplash.com/photo-1501856777435-29877ed80a3d?w=1920",
+    "Blue Lagoon": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1920",
+    "Coral Reef": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
+    "Savanna": "https://images.unsplash.com/photo-1516426122078-c23e76319801?w=1920",
+    "Iceberg": "https://images.unsplash.com/photo-1540979388789-7cee28a1cdc9?w=1920",
+    "Volcano": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1920",
+    "Bamboo Forest": "https://images.unsplash.com/photo-1518531933039-315f5d4a6b1a?w=1920",
+    "Zen Garden": "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1920",
+    "Modern Architecture": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920",
+    "Bridge at Night": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920",
+    "Neon City": "https://images.unsplash.com/photo-1557682257-2f9c97a8a469?w=1920",
+    "Underwater": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
+    "Space Nebula": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
+    "Milky Way": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
+}
+
+# Custom CSS with glass cards and wallpaper support
+def get_custom_css(wallpaper=None):
+    wallpaper_url = WALLPAPERS.get(wallpaper, "")
+    background_style = f"""
+        background-image: url('{wallpaper_url}');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    """ if wallpaper_url else """
         background: linear-gradient(135deg, #0a0e27, #1a1f4e, #0f3460);
-    }
+    """
     
-    .main-header {
-        background: rgba(255,255,255,0.1);
-        backdrop-filter: blur(15px);
-        border-radius: 16px;
-        padding: 25px;
-        margin-bottom: 20px;
-        border: 1px solid rgba(255,255,255,0.15);
-    }
-    
-    .school-code-banner {
-        background: rgba(255,255,255,0.1);
-        backdrop-filter: blur(10px);
-        border: 2px dashed rgba(233,69,96,0.4);
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        margin: 20px 0;
-    }
-    
-    .stat-card {
-        background: rgba(255,255,255,0.08);
-        backdrop-filter: blur(10px);
-        padding: 25px;
-        border-radius: 12px;
-        border-left: 4px solid #e94560;
-        border: 1px solid rgba(255,255,255,0.15);
-    }
-    
-    .golden-button {
-        background: linear-gradient(135deg, #d4af37, #b8941f);
-        color: #0a0e27;
-        font-weight: 700;
-        border: none;
-    }
-    
-    h1, h2, h3 {
-        color: white !important;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-</style>
-""", unsafe_allow_html=True)
+    return f"""
+    <style>
+        /* Global Styles */
+        .stApp {{
+            {background_style}
+        }}
+        
+        /* Glass Card Effect - Applied to all containers */
+        .stApp > header {{
+            background: rgba(10, 14, 39, 0.7) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }}
+        
+        /* Main content area */
+        .main .block-container {{
+            background: rgba(10, 14, 39, 0.6) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border-radius: 20px !important;
+            padding: 2rem !important;
+            margin: 1rem !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+        }}
+        
+        /* Sidebar */
+        section[data-testid="stSidebar"] {{
+            background: rgba(10, 14, 39, 0.8) !important;
+            backdrop-filter: blur(25px) !important;
+            -webkit-backdrop-filter: blur(25px) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }}
+        
+        section[data-testid="stSidebar"] > div {{
+            background: transparent !important;
+            padding: 1rem !important;
+        }}
+        
+        /* Text Styles - Ensure visibility */
+        .main .block-container h1,
+        .main .block-container h2,
+        .main .block-container h3,
+        .main .block-container h4,
+        .main .block-container h5,
+        .main .block-container h6,
+        .main .block-container p,
+        .main .block-container span,
+        .main .block-container div,
+        .main .block-container label {{
+            color: rgba(255, 255, 255, 0.95) !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        }}
+        
+        /* Glass Cards */
+        .glass-card {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border-radius: 16px !important;
+            padding: 20px !important;
+            margin: 10px 0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+            transition: all 0.3s ease !important;
+        }}
+        
+        .glass-card:hover {{
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: rgba(212, 175, 55, 0.5) !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3) !important;
+            transform: translateY(-2px) !important;
+        }}
+        
+        .glass-card h1,
+        .glass-card h2,
+        .glass-card h3,
+        .glass-card h4,
+        .glass-card h5,
+        .glass-card h6,
+        .glass-card p,
+        .glass-card span,
+        .glass-card div,
+        .glass-card label {{
+            color: rgba(255, 255, 255, 0.95) !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        }}
+        
+        /* Stat Cards */
+        .stat-card {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            padding: 25px !important;
+            border-radius: 16px !important;
+            border-left: 4px solid #e94560 !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+            margin: 10px 0 !important;
+        }}
+        
+        .stat-value {{
+            font-size: 2.5em !important;
+            font-weight: 800 !important;
+            color: rgba(255, 255, 255, 0.95) !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        }}
+        
+        .stat-label {{
+            color: rgba(255, 255, 255, 0.75) !important;
+            font-size: 0.95em !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        }}
+        
+        /* Form Elements */
+        .stTextInput input,
+        .stTextArea textarea,
+        .stSelectbox select,
+        .stDateInput input,
+        .stNumberInput input,
+        .stFileUploader {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 10px !important;
+            color: white !important;
+        }}
+        
+        .stTextInput input:focus,
+        .stTextArea textarea:focus,
+        .stSelectbox select:focus {{
+            border-color: rgba(212, 175, 55, 0.5) !important;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2) !important;
+        }}
+        
+        .stTextInput label,
+        .stTextArea label,
+        .stSelectbox label,
+        .stDateInput label,
+        .stNumberInput label {{
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 600 !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        }}
+        
+        /* Buttons */
+        .stButton button {{
+            background: rgba(233, 69, 96, 0.7) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 10px !important;
+            color: white !important;
+            font-weight: 600 !important;
+            padding: 0.5rem 1.2rem !important;
+            transition: all 0.3s ease !important;
+        }}
+        
+        .stButton button:hover {{
+            background: rgba(233, 69, 96, 0.9) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 25px rgba(233, 69, 96, 0.3) !important;
+        }}
+        
+        .golden-button button {{
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.8), rgba(184, 148, 31, 0.8)) !important;
+            color: #0a0e27 !important;
+            font-weight: 700 !important;
+        }}
+        
+        /* DataFrames and Tables */
+        .stDataFrame {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-radius: 10px !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }}
+        
+        .stDataFrame th {{
+            background: rgba(10, 14, 39, 0.8) !important;
+            color: white !important;
+        }}
+        
+        .stDataFrame td {{
+            color: white !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+        }}
+        
+        /* Expander */
+        .streamlit-expanderHeader {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 10px !important;
+            color: white !important;
+        }}
+        
+        /* Tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-radius: 12px !important;
+            padding: 0.3rem !important;
+        }}
+        
+        .stTabs [data-baseweb="tab"] {{
+            color: white !important;
+            background: transparent !important;
+        }}
+        
+        .stTabs [aria-selected="true"] {{
+            background: rgba(233, 69, 96, 0.5) !important;
+            border-radius: 8px !important;
+        }}
+        
+        /* Radio Buttons */
+        .stRadio label {{
+            color: white !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            margin: 4px 0 !important;
+        }}
+        
+        /* Metrics */
+        .stMetric {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-radius: 12px !important;
+            padding: 15px !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }}
+        
+        .stMetric label,
+        .stMetric div {{
+            color: white !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        }}
+        
+        /* School Code Banner */
+        .school-code-banner {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border: 2px dashed rgba(233, 69, 96, 0.4) !important;
+            border-radius: 16px !important;
+            padding: 25px !important;
+            text-align: center !important;
+            margin: 20px 0 !important;
+        }}
+        
+        .invite-code {{
+            font-family: 'Courier New', monospace !important;
+            font-size: 2.5em !important;
+            font-weight: 800 !important;
+            letter-spacing: 8px !important;
+            color: white !important;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+        }}
+        
+        /* Chat Messages */
+        .chat-bubble {{
+            background: rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-radius: 15px !important;
+            padding: 12px 18px !important;
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }}
+        
+        .chat-message-mine {{
+            background: rgba(233, 69, 96, 0.4) !important;
+            border-color: rgba(233, 69, 96, 0.3) !important;
+        }}
+        
+        /* Notification */
+        .notification {{
+            background: rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border-radius: 12px !important;
+            padding: 15px !important;
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }}
+        
+        /* Success/Error/Warning Messages */
+        .stSuccess, .stError, .stWarning, .stInfo {{
+            background: rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-radius: 10px !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }}
+        
+        /* Footer */
+        footer {{
+            background: rgba(10, 14, 39, 0.7) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: rgba(255, 255, 255, 0.7) !important;
+        }}
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {{
+            width: 10px;
+        }}
+        
+        ::-webkit-scrollbar-track {{
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }}
+        
+        ::-webkit-scrollbar-thumb {{
+            background: rgba(233, 69, 96, 0.5);
+            border-radius: 5px;
+        }}
+        
+        ::-webkit-scrollbar-thumb:hover {{
+            background: rgba(233, 69, 96, 0.8);
+        }}
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {{
+            .main .block-container {{
+                padding: 1rem !important;
+                margin: 0.5rem !important;
+            }}
+            
+            .stat-value {{
+                font-size: 1.8em !important;
+            }}
+            
+            .invite-code {{
+                font-size: 1.8em !important;
+                letter-spacing: 4px !important;
+            }}
+        }}
+    </style>
+    """
 
 # Initialize session state
 if 'user' not in st.session_state:
@@ -83,15 +446,17 @@ if 'school' not in st.session_state:
     st.session_state.school = None
 if 'page' not in st.session_state:
     st.session_state.page = 'startup'
-if 'current_section' not in st.session_state:
-    st.session_state.current_section = 'dashboard'
+if 'wallpaper' not in st.session_state:
+    st.session_state.wallpaper = "None"
+
+# Apply custom CSS
+st.markdown(get_custom_css(st.session_state.wallpaper), unsafe_allow_html=True)
 
 # Data storage setup
 DATA_DIR = Path("srms_data")
 DATA_DIR.mkdir(exist_ok=True)
 
 def load_data(filename, default=None):
-    """Load data from JSON file"""
     if default is None:
         default = {}
     filepath = DATA_DIR / filename
@@ -101,24 +466,21 @@ def load_data(filename, default=None):
     return default
 
 def save_data(filename, data):
-    """Save data to JSON file"""
     filepath = DATA_DIR / filename
     with open(filepath, 'w') as f:
         json.dump(data, f, indent=2)
 
 def generate_code(prefix="", length=8):
-    """Generate a random code"""
     chars = string.ascii_uppercase + string.digits
     return prefix + ''.join(random.choices(chars, k=length))
 
 def hash_password(password):
-    """Hash a password"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 # ============== STARTUP PAGE ==============
 def startup_page():
     st.markdown("""
-    <div style="text-align: center; padding: 50px 20px;">
+    <div class="glass-card" style="text-align: center; max-width: 600px; margin: 50px auto;">
         <div style="width: 160px; height: 160px; background: linear-gradient(135deg, #d4af37, #f0d060, #d4af37); 
              border-radius: 35px; display: inline-flex; align-items: center; justify-content: center; 
              font-size: 55px; font-weight: 900; color: #0a0e27; margin-bottom: 20px;
@@ -126,11 +488,11 @@ def startup_page():
             SRMS
         </div>
         <h1 style="font-size: 3.5em; background: linear-gradient(180deg, #f0d060, #d4af37, #b8941f); 
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 10px 0;">
             SRMS
         </h1>
-        <p style="font-size: 1.4em; color: rgba(255,255,255,0.8);">School Resource Management System</p>
-        <p style="color: rgba(212,175,55,0.9); font-size: 1.1em;">by <span style="color: #f0d060;">WeGEM</span> (Edwin)</p>
+        <p style="font-size: 1.4em; color: white; margin: 10px 0;">School Resource Management System</p>
+        <p style="color: #d4af37; font-size: 1.1em; margin: 10px 0;">by <span style="color: #f0d060; font-weight: 700;">WeGEM</span> (Edwin)</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -152,11 +514,20 @@ def startup_page():
         st.session_state.action = None
     
     if st.session_state.action == 'login':
-        login_form()
+        with st.container():
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            login_form()
+            st.markdown('</div>', unsafe_allow_html=True)
     elif st.session_state.action == 'signup':
-        signup_form()
+        with st.container():
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            signup_form()
+            st.markdown('</div>', unsafe_allow_html=True)
     elif st.session_state.action == 'create':
-        create_school_form()
+        with st.container():
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            create_school_form()
+            st.markdown('</div>', unsafe_allow_html=True)
 
 def login_form():
     st.markdown("### 🔐 Staff Login")
@@ -284,7 +655,6 @@ def create_school_form():
             }
             save_data(f"users_{school_name}.json", [admin_user])
             
-            # Initialize all data files
             for file in ["books", "members", "borrowed", "teachers", "classes", 
                         "furniture", "book_issues", "individual_lendings", 
                         "audit_log", "chat_messages"]:
@@ -304,13 +674,15 @@ def dashboard_page():
     
     # Header
     st.markdown(f"""
-    <div class="main-header" style="text-align: center;">
-        <h1>🏫 {school_name}</h1>
-        <p style="color: white;">👤 {user['name']} 
-        <span style="background: {'#e94560' if user['role']=='admin' else '#0f3460'}; 
-              color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em;">
-            {user['role'].upper()}
-        </span></p>
+    <div class="glass-card" style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: white;">🏫 {school_name}</h1>
+        <p style="color: white; font-size: 1.2em;">
+            👤 {user['name']} 
+            <span style="background: {'#e94560' if user['role']=='admin' else '#0f3460'}; 
+                  color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; margin-left: 10px;">
+                {user['role'].upper()}
+            </span>
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -318,17 +690,38 @@ def dashboard_page():
     if user['role'] == 'admin':
         st.markdown(f"""
         <div class="school-code-banner">
-            <p style="color: white;">🏫 School Invite Code - Share with Staff</p>
-            <h2 style="font-family: 'Courier New', monospace; letter-spacing: 8px;">
-                {st.session_state.school['invite_code']}
-            </h2>
-            <button onclick="navigator.clipboard.writeText('{st.session_state.school['invite_code']}')">
-                📋 Copy Code
-            </button>
+            <p style="color: white; font-size: 1.1em;">🏫 School Invite Code - Share with Staff</p>
+            <div class="invite-code">{st.session_state.school['invite_code']}</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Navigation tabs matching your HTML sections
+    # Sidebar
+    with st.sidebar:
+        st.markdown(f"""
+        <div class="glass-card" style="text-align: center; margin-bottom: 20px;">
+            <p style="color: white; font-size: 1.1em;"><strong>{user['name']}</strong></p>
+            <p style="color: #d4af37; font-size: 0.9em;">{user['role'].upper()}</p>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.8em;">{school_name}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Wallpaper selector
+        st.markdown("### 🖼️ Theme")
+        wallpaper = st.selectbox("Choose Wallpaper", list(WALLPAPERS.keys()), 
+                                 index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper))
+        if wallpaper != st.session_state.wallpaper:
+            st.session_state.wallpaper = wallpaper
+            st.rerun()
+        
+        st.divider()
+        
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.user = None
+            st.session_state.school = None
+            st.session_state.page = 'startup'
+            st.rerun()
+    
+    # Navigation tabs
     tabs = st.tabs([
         "📊 Dashboard", "📖 Book Issuing", "👤 Lend Book", "🪑 Furniture",
         "↩️ Returns", "📋 Borrowed", "👥 Members", "📚 Catalog",
@@ -366,13 +759,6 @@ def dashboard_page():
         render_reports()
     with tabs[14]:
         render_settings()
-    
-    # Logout button
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
-        st.session_state.user = None
-        st.session_state.school = None
-        st.session_state.page = 'startup'
-        st.rerun()
 
 def render_dashboard():
     school_name = st.session_state.school['name']
@@ -388,41 +774,78 @@ def render_dashboard():
     overdue = len([b for b in borrowed if not b.get('returned', False) 
                    and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
     
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown(f"""
         <div class="stat-card">
-            <div style="font-size: 2em; font-weight: 800;">{total_books}</div>
-            <div style="color: rgba(255,255,255,0.75);">Total Books</div>
+            <div class="stat-value">{total_books}</div>
+            <div class="stat-label">Total Books</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
         <div class="stat-card">
-            <div style="font-size: 2em; font-weight: 800;">{books_borrowed}</div>
-            <div style="color: rgba(255,255,255,0.75);">Books Borrowed</div>
+            <div class="stat-value">{books_borrowed}</div>
+            <div class="stat-label">Books Borrowed</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
         <div class="stat-card">
-            <div style="font-size: 2em; font-weight: 800;">{len(members)}</div>
-            <div style="color: rgba(255,255,255,0.75);">Members</div>
+            <div class="stat-value">{len(members)}</div>
+            <div class="stat-label">Members</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         st.markdown(f"""
         <div class="stat-card">
-            <div style="font-size: 2em; font-weight: 800;">{overdue}</div>
-            <div style="color: rgba(255,255,255,0.75);">Overdue</div>
+            <div class="stat-value">{overdue}</div>
+            <div class="stat-label">Overdue</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-value">{total_books - books_borrowed}</div>
+            <div class="stat-label">Books Available</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col6:
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-value">{len(teachers)}</div>
+            <div class="stat-label">Teachers</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col7:
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-value">{len(furniture)}</div>
+            <div class="stat-label">Furniture Items</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col8:
+        active_loans = len([b for b in borrowed if not b.get('returned', False)])
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-value">{active_loans}</div>
+            <div class="stat-label">Active Loans</div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_book_issuing():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📖 Bulk Book Issuing to Class")
     
     school_name = st.session_state.school['name']
@@ -452,7 +875,6 @@ def render_book_issuing():
     if 'current_class_students' in st.session_state:
         students = st.session_state.current_class_students
         if students:
-            # Create a DataFrame for bulk operations
             df = pd.DataFrame(students)
             df['Book No'] = ""
             df['Issue'] = False
@@ -483,8 +905,10 @@ def render_book_issuing():
                 save_data(f"borrowed_{school_name}.json", borrowed)
                 save_data(f"books_{school_name}.json", books)
                 st.success(f"Issued {issued_count} books!")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_individual_lending():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("👤 Individual Book Lending")
     
     school_name = st.session_state.school['name']
@@ -531,8 +955,10 @@ def render_individual_lending():
                     st.success("Book lent successfully!")
                 else:
                     st.error("Book not available!")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_furniture():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("🪑 Furniture Allocation")
     
     school_name = st.session_state.school['name']
@@ -553,7 +979,6 @@ def render_furniture():
     if st.button("📋 Load Class for Allocation", use_container_width=True):
         class_data = next((c for c in classes if c['name'] == selected_class), None)
         if class_data:
-            furniture = load_data(f"furniture_{school_name}.json", [])
             st.session_state.furniture_data = {
                 "students": class_data.get('students', []),
                 "chair_range": list(range(chair_start, chair_end + 1)),
@@ -590,8 +1015,10 @@ def render_furniture():
                 
                 save_data(f"furniture_{school_name}.json", furniture)
                 st.success(f"Allocated furniture to {allocated} students!")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_returns():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("↩️ Return Items")
     
     school_name = st.session_state.school['name']
@@ -601,13 +1028,11 @@ def render_returns():
         borrowed = load_data(f"borrowed_{school_name}.json", [])
         furniture = load_data(f"furniture_{school_name}.json", [])
         
-        # Search in borrowed books
         active_borrowed = [b for b in borrowed if not b.get('returned') 
                           and (search.lower() in b.get('name', '').lower() 
                                or search in b.get('adm', '') 
                                or search in b.get('bookNo', ''))]
         
-        # Search in furniture
         active_furniture = [f for f in furniture if not f.get('returned')
                            and (search.lower() in f.get('name', '').lower()
                                 or search in f.get('adm', '')
@@ -619,12 +1044,13 @@ def render_returns():
             for item in active_borrowed:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    st.write(f"{item['name']} - {item['bookTitle']} (#{item['bookNo']})")
+                    st.write(f"**{item['name']}** - {item['bookTitle']} (#{item['bookNo']})")
                 with col2:
                     st.write(f"Due: {item['returnDate']}")
                 with col3:
                     if st.button("Return", key=f"ret_book_{item['id']}"):
                         item['returned'] = True
+                        item['actualReturnDate'] = datetime.now().strftime('%Y-%m-%d')
                         books = load_data(f"books_{school_name}.json", [])
                         book = next((b for b in books if b['title'] == item['bookTitle']), None)
                         if book:
@@ -641,7 +1067,7 @@ def render_returns():
             for item in active_furniture:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    st.write(f"{item['name']} - Chair: {item.get('chair', '-')}, Locker: {item.get('locker', '-')}")
+                    st.write(f"**{item['name']}** - Chair: {item.get('chair', '-')}, Locker: {item.get('locker', '-')}")
                 with col2:
                     st.write(f"Date: {item['date']}")
                 with col3:
@@ -652,8 +1078,10 @@ def render_returns():
                         st.rerun()
         else:
             st.info("No matching furniture allocations")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_borrowed():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📋 Borrowed Books")
     
     school_name = st.session_state.school['name']
@@ -676,17 +1104,19 @@ def render_borrowed():
         st.dataframe(df, use_container_width=True)
         
         if st.button("📎 Export to Excel", use_container_width=True):
-            # Convert to Excel and download
             towrite = BytesIO()
-            df.to_excel(towrite, index=False)
+            with pd.ExcelWriter(towrite, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Borrowed Books')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
-            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed_books.xlsx">Download Excel File</a>'
+            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed_books.xlsx">📥 Download Excel File</a>'
             st.markdown(href, unsafe_allow_html=True)
     else:
         st.info("No records found")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_members():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("👥 Members")
     
     school_name = st.session_state.school['name']
@@ -710,24 +1140,35 @@ def render_members():
         for i, member in enumerate(members):
             col1, col2, col3 = st.columns([3, 1, 1])
             with col1:
-                st.write(f"**{member['name']}**")
-                if member.get('id'):
-                    st.write(f"ID: {member['id']}")
+                st.markdown(f"""
+                <div style="color: white;">
+                    <strong>{member['name']}</strong>
+                    {f"<br><small>ID: {member['id']}</small>" if member.get('id') else ""}
+                </div>
+                """, unsafe_allow_html=True)
             with col2:
                 if st.button("✏️ Edit", key=f"edit_mem_{i}"):
-                    new_name = st.text_input("New name", member['name'], key=f"edit_name_{i}")
-                    if st.button("Save", key=f"save_mem_{i}"):
-                        members[i]['name'] = new_name
-                        save_data(f"members_{school_name}.json", members)
-                        st.rerun()
+                    st.session_state[f"editing_member_{i}"] = True
             with col3:
                 if st.button("🗑️ Delete", key=f"del_mem_{i}"):
                     members.pop(i)
                     save_data(f"members_{school_name}.json", members)
                     st.rerun()
+            
+            if st.session_state.get(f"editing_member_{i}"):
+                new_name = st.text_input("New name", member['name'], key=f"edit_name_{i}")
+                if st.button("Save", key=f"save_mem_{i}"):
+                    members[i]['name'] = new_name
+                    save_data(f"members_{school_name}.json", members)
+                    st.session_state[f"editing_member_{i}"] = False
+                    st.rerun()
             st.divider()
+    else:
+        st.info("No members added yet")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_catalog():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📚 Book Catalog")
     
     school_name = st.session_state.school['name']
@@ -738,7 +1179,7 @@ def render_catalog():
         with col1:
             title = st.text_input("Book Title")
         with col2:
-            book_type = st.selectbox("Type", ["Textbook", "Novel", "Reference"])
+            book_type = st.selectbox("Type", ["Textbook", "Novel", "Reference", "Magazine", "Other"])
         with col3:
             quantity = st.number_input("Quantity", 1, 1000, 1)
         
@@ -753,7 +1194,11 @@ def render_catalog():
         for i, book in enumerate(books):
             col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
             with col1:
-                st.write(f"📖 **{book['title']}**")
+                st.markdown(f"""
+                <div style="color: white;">
+                    📖 <strong>{book['title']}</strong>
+                </div>
+                """, unsafe_allow_html=True)
             with col2:
                 st.write(f"Type: {book['type']}")
             with col3:
@@ -766,8 +1211,10 @@ def render_catalog():
             st.divider()
     else:
         st.info("No books in catalog")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_teachers():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("👨‍🏫 Teachers")
     
     school_name = st.session_state.school['name']
@@ -778,7 +1225,7 @@ def render_teachers():
         with col1:
             name = st.text_input("Name")
         with col2:
-            subjects = st.text_input("Subjects")
+            subjects = st.text_input("Subjects (comma separated)")
         with col3:
             class_assigned = st.text_input("Class Assigned")
         
@@ -795,18 +1242,35 @@ def render_teachers():
                 st.rerun()
     
     if teachers:
-        df = pd.DataFrame(teachers)
-        st.dataframe(df, use_container_width=True)
+        for i, teacher in enumerate(teachers):
+            col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
+            with col1:
+                st.markdown(f"""
+                <div style="color: white;">
+                    <strong>{teacher['name']}</strong>
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.write(f"Subjects: {teacher.get('subjects', '-')}")
+            with col3:
+                st.write(f"Class: {teacher.get('class_assigned', '-')}")
+            with col4:
+                if st.button("🗑️", key=f"del_teacher_{i}"):
+                    teachers.pop(i)
+                    save_data(f"teachers_{school_name}.json", teachers)
+                    st.rerun()
+            st.divider()
     else:
         st.info("No teachers added")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_classes():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📋 Class Lists")
     
     school_name = st.session_state.school['name']
     classes = load_data(f"classes_{school_name}.json", [])
     
-    # Import from Excel
     uploaded_file = st.file_uploader("📥 Import Class List (Excel)", type=['xlsx', 'xls'])
     if uploaded_file:
         df = pd.read_excel(uploaded_file)
@@ -835,8 +1299,10 @@ def render_classes():
                     classes.pop(i)
                     save_data(f"classes_{school_name}.json", classes)
                     st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_qr():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📱 QR Codes")
     
     tab1, tab2 = st.tabs(["Generate QR", "Scan QR"])
@@ -850,7 +1316,8 @@ def render_qr():
             end_num = st.number_input("End Number", 1, 10000, 10)
         
         if st.button("Generate QR Codes", use_container_width=True):
-            for i in range(start_num, end_num + 1):
+            qr_cols = st.columns(4)
+            for i in range(start_num, min(end_num + 1, start_num + 20)):  # Limit to 20
                 qr = qrcode.QRCode(version=1, box_size=10, border=5)
                 qr.add_data(f"{qr_type}-{i}")
                 qr.make(fit=True)
@@ -860,17 +1327,20 @@ def render_qr():
                 img.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
                 
-                st.image(f"data:image/png;base64,{img_str}", 
-                        caption=f"{qr_type.upper()}: {i}", width=200)
+                col_idx = (i - start_num) % 4
+                with qr_cols[col_idx]:
+                    st.image(f"data:image/png;base64,{img_str}", 
+                            caption=f"{qr_type.upper()}: {i}", width=150)
     
     with tab2:
-        st.info("📷 QR Scanner - Use your device camera to scan QR codes")
-        st.write("This feature requires camera access. Use the mobile version for scanning.")
+        st.info("📷 Scan QR codes using the SRMS mobile scanner")
         qr_input = st.text_input("Or enter QR code manually")
         if qr_input:
             st.success(f"Scanned: {qr_input}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_chat():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("💬 Staff Chat")
     
     school_name = st.session_state.school['name']
@@ -878,15 +1348,14 @@ def render_chat():
     chat_messages = load_data(f"chat_messages_{school_name}.json", [])
     users = load_data(f"users_{school_name}.json", [])
     
-    # Chat user selection
     other_users = [u for u in users if u['email'] != user['email']]
     
     col1, col2 = st.columns([1, 3])
     
     with col1:
-        st.subheader("Staff")
+        st.markdown("### Staff Online")
         for u in other_users:
-            if st.button(f"{u['name']} ({u['role']})", key=f"chat_user_{u['email']}", use_container_width=True):
+            if st.button(f"🟢 {u['name']}\n({u['role']})", key=f"chat_user_{u['email']}", use_container_width=True):
                 st.session_state.chat_with = u['email']
     
     with col2:
@@ -895,29 +1364,27 @@ def render_chat():
             chat_user = next((u for u in users if u['email'] == chat_with), None)
             
             if chat_user:
-                st.subheader(f"Chat with {chat_user['name']}")
+                st.markdown(f"### 💬 Chat with {chat_user['name']}")
                 
-                # Display messages
                 msgs = [m for m in chat_messages 
                        if (m['from'] == user['email'] and m['to'] == chat_with) 
                        or (m['from'] == chat_with and m['to'] == user['email'])]
                 
                 for msg in sorted(msgs, key=lambda x: x['timestamp']):
                     is_mine = msg['from'] == user['email']
-                    align = "right" if is_mine else "left"
-                    bg_color = "rgba(233,69,96,0.4)" if is_mine else "rgba(255,255,255,0.1)"
+                    align = "flex-end" if is_mine else "flex-start"
+                    bg = "rgba(233,69,96,0.4)" if is_mine else "rgba(255,255,255,0.15)"
                     
                     st.markdown(f"""
-                    <div style="text-align: {align}; margin: 10px 0;">
-                        <div style="display: inline-block; background: {bg_color}; 
-                             padding: 10px 15px; border-radius: 15px; color: white; max-width: 70%;">
+                    <div style="display: flex; justify-content: {align}; margin: 10px 0;">
+                        <div class="chat-bubble {'chat-message-mine' if is_mine else ''}" 
+                             style="max-width: 70%;">
                             <strong>{msg['from_name']}:</strong> {msg['message']}
                             <br><small style="color: rgba(255,255,255,0.5);">{msg['timestamp'][:16]}</small>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # Send message
                 with st.form("send_message", clear_on_submit=True):
                     msg_text = st.text_input("Type a message...", key="chat_input")
                     if st.form_submit_button("📤 Send", use_container_width=True):
@@ -932,8 +1399,10 @@ def render_chat():
                             })
                             save_data(f"chat_messages_{school_name}.json", chat_messages)
                             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_audit_log():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📝 Audit Log")
     
     school_name = st.session_state.school['name']
@@ -945,15 +1414,18 @@ def render_audit_log():
         
         if st.button("📎 Export Log", use_container_width=True):
             towrite = BytesIO()
-            df.to_excel(towrite, index=False)
+            with pd.ExcelWriter(towrite, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Audit Log')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
-            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="audit_log.xlsx">Download Excel File</a>'
+            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="audit_log.xlsx">📥 Download Excel File</a>'
             st.markdown(href, unsafe_allow_html=True)
     else:
         st.info("No audit log entries")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_reports():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("📈 Reports")
     
     school_name = st.session_state.school['name']
@@ -976,8 +1448,11 @@ def render_reports():
             today = datetime.now()
             overdue = [b for b in borrowed if not b.get('returned', False) 
                       and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today]
-            df = pd.DataFrame(overdue)
-            st.dataframe(df, use_container_width=True)
+            if overdue:
+                df = pd.DataFrame(overdue)
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.success("No overdue books!")
             
         elif report_type == "Complete Summary":
             books = load_data(f"books_{school_name}.json", [])
@@ -986,7 +1461,7 @@ def render_reports():
             teachers = load_data(f"teachers_{school_name}.json", [])
             furniture = load_data(f"furniture_{school_name}.json", [])
             
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Total Books", sum(b.get('quantity', 0) for b in books))
                 st.metric("Active Loans", len([b for b in borrowed if not b.get('returned')]))
@@ -994,14 +1469,36 @@ def render_reports():
                 st.metric("Members", len(members))
                 st.metric("Teachers", len(teachers))
             with col3:
-                st.metric("Furniture Items", len([f for f in furniture if not f.get('returned')]))
+                active_furniture = len([f for f in furniture if not f.get('returned')])
+                st.metric("Active Furniture", active_furniture)
+                st.metric("Classes", len(load_data(f"classes_{school_name}.json", [])))
+            with col4:
+                overdue_count = len([b for b in borrowed if not b.get('returned', False) 
+                                    and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
+                st.metric("Overdue Books", overdue_count)
+                st.metric("Total Transactions", len(borrowed) + len(furniture))
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_settings():
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.subheader("⚙️ Settings")
     
-    tab1, tab2 = st.tabs(["Data Management", "School Info"])
+    tab1, tab2, tab3 = st.tabs(["Theme", "Data Management", "School Info"])
     
     with tab1:
+        st.markdown("### 🖼️ Theme Settings")
+        wallpaper = st.selectbox("Select Wallpaper", list(WALLPAPERS.keys()), 
+                                 index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper))
+        if st.button("Apply Theme", use_container_width=True):
+            st.session_state.wallpaper = wallpaper
+            st.rerun()
+        
+        if wallpaper != "None":
+            st.image(WALLPAPERS[wallpaper], caption=f"Current: {wallpaper}", width=400)
+    
+    with tab2:
+        st.markdown("### 💾 Data Management")
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -1015,40 +1512,53 @@ def render_settings():
                 
                 json_str = json.dumps(all_data, indent=2)
                 b64 = base64.b64encode(json_str.encode()).decode()
-                href = f'<a href="data:application/json;base64,{b64}" download="srms_backup_{datetime.now().strftime("%Y%m%d")}.json">Download Backup</a>'
+                href = f'<a href="data:application/json;base64,{b64}" download="srms_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json">📥 Download Backup</a>'
                 st.markdown(href, unsafe_allow_html=True)
         
         with col2:
             uploaded = st.file_uploader("📤 Restore Data", type=['json'])
             if uploaded:
-                if st.button("Restore", use_container_width=True):
-                    data = json.load(uploaded)
-                    school_name = st.session_state.school['name']
-                    for file, file_data in data.items():
-                        save_data(f"{file}_{school_name}.json", file_data)
-                    st.success("Data restored!")
-                    st.rerun()
+                if st.button("Restore Backup", use_container_width=True):
+                    try:
+                        data = json.load(uploaded)
+                        school_name = st.session_state.school['name']
+                        for file, file_data in data.items():
+                            save_data(f"{file}_{school_name}.json", file_data)
+                        st.success("Data restored successfully!")
+                        st.rerun()
+                    except:
+                        st.error("Invalid backup file!")
         
         with col3:
+            st.markdown("#### ⚠️ Danger Zone")
+            confirm_delete = st.text_input("Type 'DELETE' to clear all data")
             if st.button("⚠️ Clear All Data", use_container_width=True, type="primary"):
-                confirm = st.text_input("Type 'DELETE' to confirm")
-                if confirm == "DELETE":
+                if confirm_delete == "DELETE":
                     school_name = st.session_state.school['name']
                     for file in ["books", "members", "borrowed", "teachers", "classes", 
                                "furniture", "book_issues", "individual_lendings"]:
                         save_data(f"{file}_{school_name}.json", [])
-                    st.warning("All data cleared!")
+                    st.error("All data cleared!")
+                    st.rerun()
+                else:
+                    st.warning("Type 'DELETE' to confirm")
     
-    with tab2:
+    with tab3:
+        st.markdown("### 🏫 School Information")
         school = st.session_state.school
-        st.write(f"**School Name:** {school['name']}")
-        st.write(f"**Address:** {school.get('address', 'N/A')}")
-        st.write(f"**Admin:** {school['admin_name']}")
-        st.write(f"**Email:** {school['admin_email']}")
-        if school.get('admin_phone'):
-            st.write(f"**Phone:** {school['admin_phone']}")
-        st.write(f"**Invite Code:** {school['invite_code']}")
-        st.write(f"**Created:** {school['created']}")
+        
+        st.markdown(f"""
+        <div class="glass-card">
+            <p><strong>School Name:</strong> {school['name']}</p>
+            <p><strong>Address:</strong> {school.get('address', 'N/A')}</p>
+            <p><strong>Admin:</strong> {school['admin_name']}</p>
+            <p><strong>Email:</strong> {school['admin_email']}</p>
+            <p><strong>Phone:</strong> {school.get('admin_phone', 'N/A')}</p>
+            <p><strong>Invite Code:</strong> <code style="font-size: 1.2em;">{school['invite_code']}</code></p>
+            <p><strong>Created:</strong> {school.get('created', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ============== MAIN APP ==============
 def main():
