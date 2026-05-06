@@ -23,21 +23,26 @@ st.set_page_config(
 # ============ WALLPAPERS ============
 WALLPAPERS = {
     "None": "",
+    "Library": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920",
+    "Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920",
+    "School": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920",
+    "Study": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920",
+    "Sunset": "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920",
+    "Ocean": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
+    "Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
+    "Mountain": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
+    "Night": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
     "Abstract Waves": "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920",
-    "Geometric Pattern": "https://images.unsplash.com/photo-1557683311-eac922347aa1?w=1920",
+    "Geometric": "https://images.unsplash.com/photo-1557683311-eac922347aa1?w=1920",
     "Nature Leaves": "https://images.unsplash.com/photo-1557683316-973673baf926?w=1920",
     "Starry Night": "https://images.unsplash.com/photo-1557683320-2d5001d5e9c5?w=1920",
-    "Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
-    "Mountains": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920",
-    "Ocean": "https://images.unsplash.com/photo-1507525425510-56b1e2d6c4f2?w=1920",
+    "Color Splash": "https://images.unsplash.com/photo-1557683304-6733ba7e4d6f?w=1920",
     "Desert": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920",
     "City Lights": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920",
     "Aurora": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920",
     "Galaxy": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
-    "Sunset": "https://images.unsplash.com/photo-1506815444479-bfdb1e96c566?w=1920",
-    "Library": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920",
-    "Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920",
-    "School Building": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920",
+    "Rainbow": "https://images.unsplash.com/photo-1511300636408-a63a89df3482?w=1920",
+    "Clouds": "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?w=1920",
 }
 
 def get_premium_css(wallpaper=None):
@@ -47,252 +52,47 @@ def get_premium_css(wallpaper=None):
     return f"""
     <style>
         .stApp {{ {bg_style} }}
+        .stApp > header {{ background: rgba(10,14,39,0.85) !important; backdrop-filter: blur(30px) !important; border-bottom: 2px solid rgba(212,175,55,0.3) !important; }}
+        .main .block-container {{ background: rgba(10,14,39,0.5) !important; backdrop-filter: blur(25px) !important; border-radius: 20px !important; padding: 2rem !important; margin: 1rem !important; border: 1px solid rgba(212,175,55,0.2) !important; }}
         
-        .stApp > header {{
-            background: rgba(10, 14, 39, 0.85) !important;
-            backdrop-filter: blur(30px) !important;
-            border-bottom: 2px solid rgba(212, 175, 55, 0.3) !important;
-        }}
+        section[data-testid="stSidebar"] {{ background: linear-gradient(180deg, #0a0e27 0%, #1a1f4e 50%, #0f3460 100%) !important; }}
+        section[data-testid="stSidebar"] > div {{ background: rgba(0,0,0,0.4) !important; padding: 1rem !important; }}
+        section[data-testid="stSidebar"] * {{ color: #FFFFFF !important; text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }}
+        section[data-testid="stSidebar"] .stButton button {{ background: rgba(255,255,255,0.1) !important; border: 1px solid rgba(212,175,55,0.3) !important; color: #FFFFFF !important; text-align: left !important; padding: 10px 15px !important; margin: 2px 0 !important; font-size: 0.9rem !important; box-shadow: none !important; }}
+        section[data-testid="stSidebar"] .stButton button:hover {{ background: rgba(233,69,96,0.4) !important; border-color: rgba(233,69,96,0.6) !important; }}
+        section[data-testid="stSidebar"] .streamlit-expanderHeader {{ background: rgba(212,175,55,0.2) !important; border: 1px solid rgba(212,175,55,0.3) !important; color: #FFD700 !important; font-weight: 700 !important; }}
+        section[data-testid="stSidebar"] .streamlit-expanderContent {{ background: rgba(0,0,0,0.3) !important; border: 1px solid rgba(255,255,255,0.1) !important; }}
+        section[data-testid="stSidebar"] .stSelectbox > div > div {{ background: rgba(255,255,255,0.15) !important; border: 1px solid rgba(212,175,55,0.3) !important; }}
         
-        .main .block-container {{
-            background: rgba(10, 14, 39, 0.5) !important;
-            backdrop-filter: blur(25px) !important;
-            border-radius: 20px !important;
-            padding: 2rem !important;
-            margin: 1rem !important;
-            border: 1px solid rgba(212, 175, 55, 0.2) !important;
-        }}
+        .main .block-container h1, .main .block-container h2, .main .block-container h3, .main .block-container h4 {{ color: #FFFFFF !important; text-shadow: 0 2px 10px rgba(0,0,0,0.6) !important; }}
+        .main .block-container p, .main .block-container span, .main .block-container label {{ color: #FFFFFF !important; text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }}
         
-        /* SIDEBAR - DARK WITH VISIBLE TEXT */
-        section[data-testid="stSidebar"] {{
-            background: linear-gradient(180deg, #0a0e27 0%, #1a1f4e 50%, #0f3460 100%) !important;
-        }}
+        .glass-card {{ background: rgba(255,255,255,0.12) !important; backdrop-filter: blur(20px) !important; border-radius: 16px !important; padding: 25px !important; margin: 15px 0 !important; border: 1px solid rgba(212,175,55,0.25) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important; }}
+        .stat-card {{ background: rgba(255,255,255,0.08) !important; backdrop-filter: blur(15px) !important; padding: 25px !important; border-radius: 16px !important; border-left: 4px solid #e94560 !important; border: 1px solid rgba(255,255,255,0.15) !important; text-align: center !important; margin: 8px 0 !important; }}
+        .stat-value {{ font-size: 2.5em !important; font-weight: 900 !important; color: #FFFFFF !important; }}
+        .stat-label {{ color: rgba(255,255,255,0.75) !important; font-size: 0.9em !important; font-weight: 600 !important; }}
         
-        section[data-testid="stSidebar"] > div {{
-            background: rgba(0, 0, 0, 0.4) !important;
-            padding: 1rem !important;
-        }}
+        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input {{ background: rgba(255,255,255,0.95) !important; border: 2px solid rgba(212,175,55,0.4) !important; border-radius: 10px !important; padding: 10px 15px !important; color: #1a1a1a !important; font-weight: 500 !important; }}
+        .stTextInput input::placeholder {{ color: #999 !important; }}
+        .stSelectbox > div > div {{ background: rgba(255,255,255,0.95) !important; border: 2px solid rgba(212,175,55,0.4) !important; border-radius: 10px !important; }}
+        .stSelectbox [data-baseweb="select"] * {{ color: #1a1a1a !important; }}
         
-        /* ALL SIDEBAR TEXT - WHITE */
-        section[data-testid="stSidebar"] * {{
-            color: #FFFFFF !important;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
-        }}
+        .stButton button {{ background: linear-gradient(135deg, #e94560, #c62a47) !important; border: none !important; border-radius: 10px !important; color: white !important; font-weight: 600 !important; padding: 10px 20px !important; box-shadow: 0 4px 15px rgba(233,69,96,0.3) !important; }}
+        .stButton button:hover {{ transform: translateY(-2px) !important; box-shadow: 0 8px 25px rgba(233,69,96,0.5) !important; }}
         
-        section[data-testid="stSidebar"] label,
-        section[data-testid="stSidebar"] p,
-        section[data-testid="stSidebar"] span,
-        section[data-testid="stSidebar"] div,
-        section[data-testid="stSidebar"] h1,
-        section[data-testid="stSidebar"] h2,
-        section[data-testid="stSidebar"] h3,
-        section[data-testid="stSidebar"] h4,
-        section[data-testid="stSidebar"] .stMarkdown {{
-            color: #FFFFFF !important;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
-        }}
+        .stDataFrame {{ background: rgba(255,255,255,0.08) !important; backdrop-filter: blur(15px) !important; border-radius: 12px !important; border: 1px solid rgba(212,175,55,0.3) !important; }}
+        .stDataFrame th {{ background: rgba(233,69,96,0.8) !important; color: #FFFFFF !important; font-weight: 700 !important; }}
+        .stDataFrame td {{ background: rgba(255,255,255,0.05) !important; color: #FFFFFF !important; }}
         
-        /* SIDEBAR BUTTONS */
-        section[data-testid="stSidebar"] .stButton button {{
-            background: rgba(255, 255, 255, 0.1) !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
-            color: #FFFFFF !important;
-            text-align: left !important;
-            padding: 10px 15px !important;
-            margin: 2px 0 !important;
-            font-size: 0.9rem !important;
-            box-shadow: none !important;
-        }}
+        .school-code-banner {{ background: rgba(255,255,255,0.1) !important; backdrop-filter: blur(15px) !important; border: 2px dashed rgba(233,69,96,0.4) !important; border-radius: 16px !important; padding: 25px !important; text-align: center !important; }}
+        .invite-code {{ font-family: 'Courier New', monospace !important; font-size: 2.5em !important; font-weight: 800 !important; letter-spacing: 8px !important; color: #FFFFFF !important; }}
         
-        section[data-testid="stSidebar"] .stButton button:hover {{
-            background: rgba(233, 69, 96, 0.4) !important;
-            border-color: rgba(233, 69, 96, 0.6) !important;
-        }}
+        .stTabs [data-baseweb="tab-list"] {{ background: rgba(255,255,255,0.08) !important; border-radius: 12px !important; padding: 4px !important; }}
+        .stTabs [data-baseweb="tab"] {{ color: rgba(255,255,255,0.7) !important; }}
+        .stTabs [aria-selected="true"] {{ background: #e94560 !important; color: #FFFFFF !important; border-radius: 8px !important; }}
         
-        /* SIDEBAR EXPANDER */
-        section[data-testid="stSidebar"] .streamlit-expanderHeader {{
-            background: rgba(212, 175, 55, 0.2) !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
-            color: #FFD700 !important;
-            font-weight: 700 !important;
-        }}
-        
-        section[data-testid="stSidebar"] .streamlit-expanderContent {{
-            background: rgba(0, 0, 0, 0.3) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        }}
-        
-        /* SIDEBAR SELECTBOX */
-        section[data-testid="stSidebar"] .stSelectbox > div > div {{
-            background: rgba(255, 255, 255, 0.15) !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
-        }}
-        
-        section[data-testid="stSidebar"] [data-baseweb="select"] * {{
-            color: #FFFFFF !important;
-        }}
-        
-        /* MAIN CONTENT TEXT */
-        .main .block-container h1,
-        .main .block-container h2,
-        .main .block-container h3,
-        .main .block-container h4 {{
-            color: #FFFFFF !important;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6) !important;
-        }}
-        
-        .main .block-container p,
-        .main .block-container span,
-        .main .block-container label {{
-            color: #FFFFFF !important;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
-        }}
-        
-        /* GLASS CARDS */
-        .glass-card {{
-            background: rgba(255, 255, 255, 0.12) !important;
-            backdrop-filter: blur(20px) !important;
-            border-radius: 16px !important;
-            padding: 25px !important;
-            margin: 15px 0 !important;
-            border: 1px solid rgba(212, 175, 55, 0.25) !important;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
-        }}
-        
-        /* STAT CARDS */
-        .stat-card {{
-            background: rgba(255, 255, 255, 0.08) !important;
-            backdrop-filter: blur(15px) !important;
-            padding: 25px !important;
-            border-radius: 16px !important;
-            border-left: 4px solid #e94560 !important;
-            border: 1px solid rgba(255, 255, 255, 0.15) !important;
-            text-align: center !important;
-            margin: 8px 0 !important;
-        }}
-        
-        .stat-value {{
-            font-size: 2.5em !important;
-            font-weight: 900 !important;
-            color: #FFFFFF !important;
-        }}
-        
-        .stat-label {{
-            color: rgba(255, 255, 255, 0.75) !important;
-            font-size: 0.9em !important;
-            font-weight: 600 !important;
-        }}
-        
-        /* FORM INPUTS - WHITE BACKGROUND */
-        .stTextInput input,
-        .stTextArea textarea,
-        .stNumberInput input,
-        .stDateInput input {{
-            background: rgba(255, 255, 255, 0.95) !important;
-            border: 2px solid rgba(212, 175, 55, 0.4) !important;
-            border-radius: 10px !important;
-            padding: 10px 15px !important;
-            color: #1a1a1a !important;
-            font-weight: 500 !important;
-        }}
-        
-        .stTextInput input::placeholder {{
-            color: #999 !important;
-        }}
-        
-        .stSelectbox > div > div {{
-            background: rgba(255, 255, 255, 0.95) !important;
-            border: 2px solid rgba(212, 175, 55, 0.4) !important;
-            border-radius: 10px !important;
-        }}
-        
-        .stSelectbox [data-baseweb="select"] * {{
-            color: #1a1a1a !important;
-        }}
-        
-        /* BUTTONS */
-        .stButton button {{
-            background: linear-gradient(135deg, #e94560, #c62a47) !important;
-            border: none !important;
-            border-radius: 10px !important;
-            color: white !important;
-            font-weight: 600 !important;
-            padding: 10px 20px !important;
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3) !important;
-        }}
-        
-        .stButton button:hover {{
-            transform: translateY(-2px) !important;
-            box-shadow: 0 8px 25px rgba(233, 69, 96, 0.5) !important;
-        }}
-        
-        /* TABLES */
-        .stDataFrame {{
-            background: rgba(255, 255, 255, 0.08) !important;
-            backdrop-filter: blur(15px) !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
-        }}
-        
-        .stDataFrame th {{
-            background: rgba(233, 69, 96, 0.8) !important;
-            color: #FFFFFF !important;
-            font-weight: 700 !important;
-        }}
-        
-        .stDataFrame td {{
-            background: rgba(255, 255, 255, 0.05) !important;
-            color: #FFFFFF !important;
-        }}
-        
-        /* SCHOOL CODE BANNER */
-        .school-code-banner {{
-            background: rgba(255, 255, 255, 0.1) !important;
-            backdrop-filter: blur(15px) !important;
-            border: 2px dashed rgba(233, 69, 96, 0.4) !important;
-            border-radius: 16px !important;
-            padding: 25px !important;
-            text-align: center !important;
-        }}
-        
-        .invite-code {{
-            font-family: 'Courier New', monospace !important;
-            font-size: 2.5em !important;
-            font-weight: 800 !important;
-            letter-spacing: 8px !important;
-            color: #FFFFFF !important;
-        }}
-        
-        /* TABS */
-        .stTabs [data-baseweb="tab-list"] {{
-            background: rgba(255, 255, 255, 0.08) !important;
-            border-radius: 12px !important;
-            padding: 4px !important;
-        }}
-        
-        .stTabs [data-baseweb="tab"] {{
-            color: rgba(255, 255, 255, 0.7) !important;
-        }}
-        
-        .stTabs [aria-selected="true"] {{
-            background: #e94560 !important;
-            color: #FFFFFF !important;
-            border-radius: 8px !important;
-        }}
-        
-        /* FOOTER */
-        footer {{
-            background: rgba(0, 0, 0, 0.3) !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
-            color: rgba(255, 255, 255, 0.6) !important;
-        }}
-        
-        @media (max-width: 768px) {{
-            .main .block-container {{
-                padding: 1rem !important;
-                margin: 0.5rem !important;
-            }}
-        }}
+        footer {{ background: rgba(0,0,0,0.3) !important; border-top: 1px solid rgba(255,255,255,0.15) !important; color: rgba(255,255,255,0.6) !important; }}
+        @media (max-width: 768px) {{ .main .block-container {{ padding: 1rem !important; margin: 0.5rem !important; }} }}
     </style>
     """
 
@@ -304,7 +104,7 @@ if 'school' not in st.session_state:
 if 'page' not in st.session_state:
     st.session_state.page = 'startup'
 if 'wallpaper' not in st.session_state:
-    st.session_state.wallpaper = "Galaxy"
+    st.session_state.wallpaper = "Library"
 if 'current_section' not in st.session_state:
     st.session_state.current_section = 'dashboard'
 if 'action' not in st.session_state:
@@ -425,8 +225,11 @@ def signup_form():
             if any(u['email'] == email for u in users):
                 st.error("Email already registered!")
                 return
-            new_user = {"name": name, "email": email, "phone": phone, "staff_id": staff_id, "code": invite_code.upper(),
-                       "password": hash_password(password), "role": "teacher", "joined": datetime.now().strftime("%Y-%m-%d")}
+            new_user = {
+                "name": name, "email": email, "phone": phone, "staff_id": staff_id,
+                "code": invite_code.upper(), "password": hash_password(password),
+                "role": "teacher", "joined": datetime.now().strftime("%Y-%m-%d")
+            }
             users.append(new_user)
             save_data(f"users_{school_name}.json", users)
             st.session_state.user = new_user
@@ -458,13 +261,19 @@ def create_school_form():
                 st.error("School already exists!")
                 return
             invite_code = generate_code()
-            school = {"name": school_name, "address": address, "admin_name": admin_name, "admin_email": admin_email,
-                     "admin_phone": admin_phone, "invite_code": invite_code, "created": datetime.now().strftime("%Y-%m-%d")}
+            school = {
+                "name": school_name, "address": address, "admin_name": admin_name,
+                "admin_email": admin_email, "admin_phone": admin_phone,
+                "invite_code": invite_code, "created": datetime.now().strftime("%Y-%m-%d")
+            }
             schools[school_name] = school
             save_data("schools.json", schools)
-            admin_user = {"name": admin_name, "email": admin_email, "phone": admin_phone, "staff_id": "ADMIN-001",
-                         "code": invite_code, "password": hash_password(password), "role": "admin",
-                         "joined": datetime.now().strftime("%Y-%m-%d")}
+            admin_user = {
+                "name": admin_name, "email": admin_email, "phone": admin_phone,
+                "staff_id": "ADMIN-001", "code": invite_code,
+                "password": hash_password(password), "role": "admin",
+                "joined": datetime.now().strftime("%Y-%m-%d")
+            }
             save_data(f"users_{school_name}.json", [admin_user])
             for file in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages"]:
                 save_data(f"{file}_{school_name}.json", [])
@@ -491,7 +300,7 @@ def dashboard_page():
     if user['role'] == 'admin':
         st.markdown(f"""
         <div class="school-code-banner">
-            <p style="color:#FFF;">🏫 School Invite Code - Share with Staff</p>
+            <p style="color:#FFF;font-size:0.9em;">🏫 School Invite Code - Share with Staff</p>
             <div class="invite-code">{st.session_state.school['invite_code']}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -514,7 +323,6 @@ def dashboard_page():
         
         st.markdown("---")
         
-        # Navigation matching original HTML exactly
         with st.expander("📊 MAIN", expanded=True):
             if st.button("📊 Dashboard", use_container_width=True, key="nav_dash"):
                 st.session_state.current_section = 'dashboard'
@@ -624,7 +432,6 @@ def dashboard_page():
 
 # ============ RENDER FUNCTIONS ============
 def render_dashboard():
-    st.markdown('<div class="glass-card"><h2>📊 Dashboard Overview</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     books = load_data(f"books_{school_name}.json", [])
     borrowed = load_data(f"borrowed_{school_name}.json", [])
@@ -634,42 +441,57 @@ def render_dashboard():
     
     total_books = sum(b.get('quantity', 0) for b in books)
     books_borrowed = len([b for b in borrowed if not b.get('returned')])
-    overdue = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
+    books_available = total_books - books_borrowed
+    total_members = len(members)
+    total_teachers = len(teachers)
+    total_furniture = len([f for f in furniture if not f.get('returned')])
+    overdue_count = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
+    active_loans = len([b for b in borrowed if not b.get('returned')])
     
-    cols = st.columns(4)
-    vals = [total_books, books_borrowed, total_books - books_borrowed, overdue]
-    labels = ['Total Books', 'Books Borrowed', 'Books Available', 'Overdue']
-    for i, (v, l) in enumerate(zip(vals, labels)):
-        with cols[i]:
-            st.markdown(f'<div class="stat-card"><div class="stat-value">{v}</div><div class="stat-label">{l}</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h2>📊 Dashboard Overview</h2>', unsafe_allow_html=True)
     
-    cols2 = st.columns(4)
-    vals2 = [len(members), len(teachers), len([f for f in furniture if not f.get('returned')]), len([b for b in borrowed if not b.get('returned')])]
-    labels2 = ['Members', 'Teachers', 'Furniture Items', 'Active Loans']
-    for i, (v, l) in enumerate(zip(vals2, labels2)):
-        with cols2[i]:
-            st.markdown(f'<div class="stat-card"><div class="stat-value">{v}</div><div class="stat-label">{l}</div></div>', unsafe_allow_html=True)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{total_books}</div><div class="stat-label">Total Books</div></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{books_borrowed}</div><div class="stat-label">Books Borrowed</div></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{books_available}</div><div class="stat-label">Books Available</div></div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{total_members}</div><div class="stat-label">Members</div></div>', unsafe_allow_html=True)
+    
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{total_teachers}</div><div class="stat-label">Teachers</div></div>', unsafe_allow_html=True)
+    with col6:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{total_furniture}</div><div class="stat-label">Furniture Items</div></div>', unsafe_allow_html=True)
+    with col7:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{overdue_count}</div><div class="stat-label">Overdue</div></div>', unsafe_allow_html=True)
+    with col8:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{active_loans}</div><div class="stat-label">Active Loans</div></div>', unsafe_allow_html=True)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_book_issuing():
-    st.markdown('<div class="glass-card"><h2>📖 Bulk Book Issuing to Class</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     books = load_data(f"books_{school_name}.json", [])
     classes = load_data(f"classes_{school_name}.json", [])
     
+    st.markdown('<div class="glass-card"><h2>📖 Bulk Book Issuing to Class</h2>', unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     with col1:
-        selected_book = st.selectbox("Book:", [b['title'] for b in books if b.get('quantity', 0) > 0], key="bi_book")
+        selected_book = st.selectbox("Book:", [b['title'] for b in books if b.get('quantity', 0) > 0], key="bi_book_select")
     with col2:
-        selected_class = st.selectbox("Class:", [c['name'] for c in classes], key="bi_class")
+        selected_class = st.selectbox("Class:", [c['name'] for c in classes], key="bi_class_select")
     
     col3, col4 = st.columns(2)
     with col3:
-        issue_date = st.date_input("Issue Date:", datetime.now(), key="bi_idate")
+        issue_date = st.date_input("Issue Date:", datetime.now(), key="bi_issue_date_input")
     with col4:
-        return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="bi_rdate")
+        return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="bi_return_date_input")
     
-    if st.button("📋 Load", use_container_width=True, key="bi_load"):
+    if st.button("📋 Load", use_container_width=True, key="bi_load_btn"):
         class_data = next((c for c in classes if c['name'] == selected_class), None)
         if class_data:
             st.session_state.bi_students = class_data.get('students', [])
@@ -681,78 +503,114 @@ def render_book_issuing():
             df = pd.DataFrame(students)
             df['Book No'] = ""
             df['Issue'] = False
-            edited = st.data_editor(df, use_container_width=True, key="bi_editor")
-            if st.button("✅ Issue", use_container_width=True, key="bi_issue"):
-                count = 0                borrowed = load_data(f"borrowed_{school_name}.json", [])
-                for _, row in edited.iterrows():
+            edited_df = st.data_editor(df, use_container_width=True, key="bi_editor")
+            
+            if st.button("✅ Issue", use_container_width=True, key="bi_issue_btn"):
+                count = 0
+                borrowed = load_data(f"borrowed_{school_name}.json", [])
+                for _, row in edited_df.iterrows():
                     if row['Issue'] and row['Book No']:
                         book = next((b for b in books if b['title'] == selected_book), None)
                         if book and book['quantity'] > 0:
-                            borrowed.append({"name": row['name'], "adm": row.get('adm', ''), "bookTitle": selected_book,
-                                           "bookNo": row['Book No'], "borrowDate": issue_date.strftime('%Y-%m-%d'),
-                                           "returnDate": return_date.strftime('%Y-%m-%d'), "returned": False, "id": generate_code("BOR")})
-                            book['quantity'] -= 1
-                            count += 1
+                            borrowed.append({
+                                "name": row['name'],
+                                "adm": row.get('adm', ''),
+                                "bookTitle": selected_book,
+                                "bookNo": row['Book No'],
+                                "borrowDate": issue_date.strftime('%Y-%m-%d'),
+                                "returnDate": return_date.strftime('%Y-%m-%d'),
+                                "returned": False,
+                                "id": generate_code("BOR")
+                            })
+                            book['quantity'] = book['quantity'] - 1
+                            count = count + 1
                 save_data(f"borrowed_{school_name}.json", borrowed)
                 save_data(f"books_{school_name}.json", books)
                 st.success(f"Issued {count} books!")
+                if 'bi_students' in st.session_state:
+                    del st.session_state.bi_students
+                st.rerun()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_individual_lending():
-    st.markdown('<div class="glass-card"><h2>👤 Individual Book Lending</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     books = load_data(f"books_{school_name}.json", [])
     
+    st.markdown('<div class="glass-card"><h2>👤 Individual Book Lending</h2>', unsafe_allow_html=True)
+    
     with st.form("frm_ind_lend"):
-        c1, c2 = st.columns(2)
-        with c1:
-            name = st.text_input("Name:", placeholder="Student name")
-            adm = st.text_input("ADM:", placeholder="Admission number")
-            form = st.text_input("Form:", placeholder="Class/Form")
-        with c2:
-            stream = st.text_input("Stream:", placeholder="Stream")
-            selected_book = st.selectbox("Book:", [b['title'] for b in books if b.get('quantity', 0) > 0], key="il_book")
-            book_no = st.text_input("Book No:", placeholder="Book number")
-        c3, c4 = st.columns(2)
-        with c3:
-            borrow_date = st.date_input("Borrow Date:", datetime.now(), key="il_bd")
-        with c4:
-            return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="il_rd")
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("Name:", placeholder="Student name", key="il_name")
+            adm = st.text_input("ADM:", placeholder="Admission number", key="il_adm")
+            form = st.text_input("Form:", placeholder="Class/Form", key="il_form")
+        with col2:
+            stream = st.text_input("Stream:", placeholder="Stream", key="il_stream")
+            selected_book = st.selectbox("Book:", [b['title'] for b in books if b.get('quantity', 0) > 0], key="il_book_select")
+            book_no = st.text_input("Book No:", placeholder="Book number", key="il_book_no")
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            borrow_date = st.date_input("Borrow Date:", datetime.now(), key="il_borrow_date")
+        with col4:
+            return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="il_return_date")
+        
         if st.form_submit_button("📖 Lend Book", use_container_width=True):
             if name and selected_book:
                 borrowed = load_data(f"borrowed_{school_name}.json", [])
                 book = next((b for b in books if b['title'] == selected_book), None)
                 if book and book['quantity'] > 0:
-                    borrowed.append({"name": name, "adm": adm, "form": form, "stream": stream, "bookTitle": selected_book,
-                                   "bookNo": book_no, "borrowDate": borrow_date.strftime('%Y-%m-%d'),
-                                   "returnDate": return_date.strftime('%Y-%m-%d'), "returned": False, "id": generate_code("BOR")})
-                    book['quantity'] -= 1
+                    borrowed.append({
+                        "name": name,
+                        "adm": adm,
+                        "form": form,
+                        "stream": stream,
+                        "bookTitle": selected_book,
+                        "bookNo": book_no,
+                        "borrowDate": borrow_date.strftime('%Y-%m-%d'),
+                        "returnDate": return_date.strftime('%Y-%m-%d'),
+                        "returned": False,
+                        "id": generate_code("BOR")
+                    })
+                    book['quantity'] = book['quantity'] - 1
                     save_data(f"borrowed_{school_name}.json", borrowed)
                     save_data(f"books_{school_name}.json", books)
-                    st.success("Book lent!")
+                    st.success("Book lent successfully!")
+                    st.rerun()
                 else:
                     st.error("Book not available!")
+    
+    # Show recent lendings
+    st.markdown("### Recent Lendings")
+    borrowed = load_data(f"borrowed_{school_name}.json", [])
+    if borrowed:
+        df = pd.DataFrame(borrowed[-10:])
+        st.dataframe(df, use_container_width=True)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_furniture():
-    st.markdown('<div class="glass-card"><h2>🪑 Furniture Allocation</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     classes = load_data(f"classes_{school_name}.json", [])
     
-    selected_class = st.selectbox("Class:", [c['name'] for c in classes], key="fur_class")
-    c1, c2 = st.columns(2)
-    with c1:
-        chair_prefix = st.text_input("Chair Prefix:", "CH-")
-        chair_start = st.number_input("Chair Start:", 1, 1000, 1, key="fur_cs")
-        chair_end = st.number_input("Chair End:", 1, 1000, 10, key="fur_ce")
-    with c2:
-        locker_prefix = st.text_input("Locker Prefix:", "LK-")
-        locker_start = st.number_input("Locker Start:", 1, 1000, 1, key="fur_ls")
-        locker_end = st.number_input("Locker End:", 1, 1000, 10, key="fur_le")
+    st.markdown('<div class="glass-card"><h2>🪑 Furniture Allocation</h2>', unsafe_allow_html=True)
     
-    alloc_date = st.date_input("Date:", datetime.now(), key="fur_date")
+    selected_class = st.selectbox("Class:", [c['name'] for c in classes], key="fur_class_select")
     
-    if st.button("📋 Load Class", use_container_width=True, key="fur_load"):
+    col1, col2 = st.columns(2)
+    with col1:
+        chair_prefix = st.text_input("Chair Prefix:", "CH-", key="fur_chair_prefix")
+        chair_start = st.number_input("Chair Start:", 1, 1000, 1, key="fur_chair_start")
+        chair_end = st.number_input("Chair End:", 1, 1000, 10, key="fur_chair_end")
+    with col2:
+        locker_prefix = st.text_input("Locker Prefix:", "LK-", key="fur_locker_prefix")
+        locker_start = st.number_input("Locker Start:", 1, 1000, 1, key="fur_locker_start")
+        locker_end = st.number_input("Locker End:", 1, 1000, 10, key="fur_locker_end")
+    
+    alloc_date = st.date_input("Date:", datetime.now(), key="fur_alloc_date")
+    
+    if st.button("📋 Load Class", use_container_width=True, key="fur_load_btn"):
         class_data = next((c for c in classes if c['name'] == selected_class), None)
         if class_data:
             st.session_state.fur_students = class_data.get('students', [])
@@ -765,89 +623,137 @@ def render_furniture():
             df['Chair No'] = ""
             df['Locker No'] = ""
             df['Allocate'] = False
-            edited = st.data_editor(df, use_container_width=True, key="fur_editor")
-            if st.button("✅ Assign", use_container_width=True, key="fur_assign"):
+            edited_df = st.data_editor(df, use_container_width=True, key="fur_editor")
+            
+            if st.button("✅ Assign", use_container_width=True, key="fur_assign_btn"):
                 count = 0
                 furniture = load_data(f"furniture_{school_name}.json", [])
-                for _, row in edited.iterrows():
+                for _, row in edited_df.iterrows():
                     if row['Allocate']:
-                        furniture.append({"name": row['name'], "adm": row.get('adm', ''),
-                                        "chair": f"{chair_prefix}{row['Chair No']}" if row['Chair No'] else "",
-                                        "locker": f"{locker_prefix}{row['Locker No']}" if row['Locker No'] else "",
-                                        "date": alloc_date.strftime('%Y-%m-%d'), "returned": False, "id": generate_code("FUR")})
-                        count += 1
+                        furniture.append({
+                            "name": row['name'],
+                            "adm": row.get('adm', ''),
+                            "chair": f"{chair_prefix}{row['Chair No']}" if row['Chair No'] else "",
+                            "locker": f"{locker_prefix}{row['Locker No']}" if row['Locker No'] else "",
+                            "date": alloc_date.strftime('%Y-%m-%d'),
+                            "returned": False,
+                            "id": generate_code("FUR")
+                        })
+                        count = count + 1
                 save_data(f"furniture_{school_name}.json", furniture)
                 st.success(f"Allocated {count} items!")
+                if 'fur_students' in st.session_state:
+                    del st.session_state.fur_students
+                st.rerun()
+    
+    # Show current allocations
+    st.markdown("### Current Allocations")
+    furniture = load_data(f"furniture_{school_name}.json", [])
+    active_furniture = [f for f in furniture if not f.get('returned')]
+    if active_furniture:
+        df = pd.DataFrame(active_furniture)
+        st.dataframe(df, use_container_width=True)
+        if st.button("📎 Export", use_container_width=True, key="fur_export"):
+            towrite = BytesIO()
+            df.to_excel(towrite, index=False, engine='openpyxl')
+            towrite.seek(0)
+            b64 = base64.b64encode(towrite.read()).decode()
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="furniture.xlsx">📥 Download</a>', unsafe_allow_html=True)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_returns():
-    st.markdown('<div class="glass-card"><h2>↩️ Return Items</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
-    search = st.text_input("Search...", placeholder="Search by name, ADM, or item number", key="ret_search")
-    if st.button("🔍 Search", use_container_width=True, key="ret_btn"):
+    
+    st.markdown('<div class="glass-card"><h2>↩️ Return Items</h2>', unsafe_allow_html=True)
+    
+    search = st.text_input("Search...", placeholder="Search by name, ADM, or item number", key="ret_search_input")
+    
+    if st.button("🔍 Search", use_container_width=True, key="ret_search_btn"):
         borrowed = load_data(f"borrowed_{school_name}.json", [])
         furniture = load_data(f"furniture_{school_name}.json", [])
         
-        active_books = [b for b in borrowed if not b.get('returned') and (search.lower() in b.get('name', '').lower() or search in b.get('adm', '') or search in b.get('bookNo', ''))]
-        active_furniture = [f for f in furniture if not f.get('returned') and (search.lower() in f.get('name', '').lower() or search in f.get('adm', '') or search in f.get('chair', '') or search in f.get('locker', ''))]
+        active_books = [b for b in borrowed if not b.get('returned') and (
+            search.lower() in b.get('name', '').lower() or 
+            search in b.get('adm', '') or 
+            search in b.get('bookNo', '')
+        )]
+        
+        active_furniture = [f for f in furniture if not f.get('returned') and (
+            search.lower() in f.get('name', '').lower() or 
+            search in f.get('adm', '') or 
+            search in f.get('chair', '') or 
+            search in f.get('locker', '')
+        )]
         
         st.markdown("### 📚 Books")
         if active_books:
             for item in active_books:
-                c1, c2, c3 = st.columns([3, 1, 1])
-                with c1:
-                    st.write(f"{item['name']} - {item['bookTitle']} (#{item['bookNo']})")
-                with c2:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"**{item['name']}** - {item['bookTitle']} (#{item['bookNo']})")
+                with col2:
                     st.write(f"Due: {item['returnDate']}")
-                with c3:
-                    if st.button("Return", key=f"rb_{item['id']}"):
+                with col3:
+                    if st.button("Return", key=f"ret_book_{item['id']}"):
                         item['returned'] = True
+                        item['actualReturnDate'] = datetime.now().strftime('%Y-%m-%d')
                         books = load_data(f"books_{school_name}.json", [])
                         book = next((b for b in books if b['title'] == item['bookTitle']), None)
                         if book:
-                            book['quantity'] += 1
+                            book['quantity'] = book['quantity'] + 1
                         save_data(f"books_{school_name}.json", books)
                         save_data(f"borrowed_{school_name}.json", borrowed)
-                        st.success("Returned!")
+                        st.success("Book returned!")
                         st.rerun()
+                st.divider()
         else:
             st.info("No matching books")
         
         st.markdown("### 🪑 Furniture")
         if active_furniture:
             for item in active_furniture:
-                c1, c2, c3 = st.columns([3, 1, 1])
-                with c1:
-                    st.write(f"{item['name']} - Chair: {item.get('chair', '-')}, Locker: {item.get('locker', '-')}")
-                with c2:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"**{item['name']}** - Chair: {item.get('chair', '-')}, Locker: {item.get('locker', '-')}")
+                with col2:
                     st.write(f"Date: {item['date']}")
-                with c3:
-                    if st.button("Return", key=f"rf_{item['id']}"):
+                with col3:
+                    if st.button("Return", key=f"ret_fur_{item['id']}"):
                         item['returned'] = True
                         save_data(f"furniture_{school_name}.json", furniture)
-                        st.success("Returned!")
+                        st.success("Furniture returned!")
                         st.rerun()
+                st.divider()
         else:
             st.info("No matching furniture")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_borrowed():
-    st.markdown('<div class="glass-card"><h2>📋 Borrowed Books</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     borrowed = load_data(f"borrowed_{school_name}.json", [])
-    filt = st.radio("Filter:", ["All", "Active", "Overdue"], horizontal=True, key="bor_filt")
+    
+    st.markdown('<div class="glass-card"><h2>📋 Borrowed Books</h2>', unsafe_allow_html=True)
+    
+    filter_option = st.radio("Filter:", ["📋 All", "✅ Active", "🔴 Overdue"], horizontal=True, key="bor_filter")
+    
     today = datetime.now()
     
-    if filt == "Active":
+    if filter_option == "✅ Active":
         filtered = [b for b in borrowed if not b.get('returned')]
-    elif filt == "Overdue":
+    elif filter_option == "🔴 Overdue":
         filtered = [b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today]
     else:
         filtered = borrowed
     
+    search = st.text_input("Search...", placeholder="Search by name, ADM, or book", key="bor_search")
+    if search:
+        filtered = [b for b in filtered if search.lower() in b.get('name', '').lower() or search in b.get('adm', '') or search.lower() in b.get('bookTitle', '').lower()]
+    
     if filtered:
         st.dataframe(pd.DataFrame(filtered), use_container_width=True)
-        if st.button("📎 Export", use_container_width=True, key="bor_exp"):
+        if st.button("📎 Export", use_container_width=True, key="bor_export_btn"):
             towrite = BytesIO()
             pd.DataFrame(filtered).to_excel(towrite, index=False, engine='openpyxl')
             towrite.seek(0)
@@ -855,19 +761,21 @@ def render_borrowed():
             st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed.xlsx">📥 Download</a>', unsafe_allow_html=True)
     else:
         st.info("No records")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_members():
-    st.markdown('<div class="glass-card"><h2>👥 Members</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     members = load_data(f"members_{school_name}.json", [])
     
+    st.markdown('<div class="glass-card"><h2>👥 Members</h2>', unsafe_allow_html=True)
+    
     with st.form("frm_member"):
-        c1, c2 = st.columns(2)
-        with c1:
-            name = st.text_input("Name:", placeholder="Member name")
-        with c2:
-            mid = st.text_input("ID:", placeholder="Member ID")
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("Name:", placeholder="Member name", key="mem_name")
+        with col2:
+            mid = st.text_input("ID:", placeholder="Member ID", key="mem_id")
         if st.form_submit_button("➕ Add", use_container_width=True):
             if name:
                 members.append({"name": name, "id": mid or generate_code("MEM")})
@@ -877,137 +785,168 @@ def render_members():
     
     search = st.text_input("Search...", placeholder="Search members", key="mem_search")
     filtered = [m for m in members if not search or search.lower() in m['name'].lower() or search in m.get('id', '')]
+    
     for i, m in enumerate(filtered):
-        c1, c2 = st.columns([4, 1])
-        with c1:
+        col1, col2 = st.columns([4, 1])
+        with col1:
             st.write(f"**{m['name']}** {f'({m["id"]})' if m.get('id') else ''}")
-        with c2:
+        with col2:
             if st.button("🗑️", key=f"del_mem_{i}"):
                 members.remove(m)
                 save_data(f"members_{school_name}.json", members)
                 st.rerun()
         st.divider()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_catalog():
-    st.markdown('<div class="glass-card"><h2>📚 Catalog</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     books = load_data(f"books_{school_name}.json", [])
     
+    st.markdown('<div class="glass-card"><h2>📚 Catalog</h2>', unsafe_allow_html=True)
+    
     with st.form("frm_book"):
-        c1, c2, c3 = st.columns([2, 1, 1])
-        with c1:
-            title = st.text_input("Title:", placeholder="Book title")
-        with c2:
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            title = st.text_input("Title:", placeholder="Book title", key="cat_title")
+        with col2:
             btype = st.selectbox("Type:", ["Textbook", "Novel", "Reference"], key="cat_type")
-        with c3:
+        with col3:
             qty = st.number_input("Qty:", 1, 1000, 1, key="cat_qty")
         if st.form_submit_button("📖 Add Book", use_container_width=True):
             if title:
-                books.append({"title": title, "type": btype, "quantity": qty})
+                existing = next((b for b in books if b['title'] == title), None)
+                if existing:
+                    existing['quantity'] = existing['quantity'] + qty
+                else:
+                    books.append({"title": title, "type": btype, "quantity": qty})
                 save_data(f"books_{school_name}.json", books)
                 st.success("Added!")
                 st.rerun()
     
     for i, b in enumerate(books):
-        c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
-        with c1:
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+        with col1:
             st.write(f"📖 **{b['title']}**")
-        with c2:
+        with col2:
             st.write(b['type'])
-        with c3:
+        with col3:
             st.write(f"Qty: {b['quantity']}")
-        with c4:
+        with col4:
             if st.button("🗑️", key=f"del_book_{i}"):
                 books.pop(i)
                 save_data(f"books_{school_name}.json", books)
                 st.rerun()
         st.divider()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_teachers():
-    st.markdown('<div class="glass-card"><h2>👨‍🏫 Teachers</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     teachers = load_data(f"teachers_{school_name}.json", [])
     
+    st.markdown('<div class="glass-card"><h2>👨‍🏫 Teachers</h2>', unsafe_allow_html=True)
+    
     with st.form("frm_teacher"):
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            name = st.text_input("Name:", placeholder="Teacher name")
-        with c2:
-            subject = st.text_input("Subjects:", placeholder="Subjects")
-        with c3:
-            classes = st.text_input("Classes:", placeholder="Classes")
-        with c4:
-            duty = st.text_input("Class Assigned:", placeholder="Class")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            name = st.text_input("Name:", placeholder="Teacher name", key="tea_name")
+        with col2:
+            subject = st.text_input("Subjects:", placeholder="Subjects", key="tea_subject")
+        with col3:
+            classes = st.text_input("Classes:", placeholder="Classes", key="tea_classes")
+        with col4:
+            duty = st.text_input("Class Assigned:", placeholder="Class", key="tea_duty")
         if st.form_submit_button("➕ Add", use_container_width=True):
             if name:
-                teachers.append({"name": name, "subject": subject, "classes": classes, "duty": duty})
+                teachers.append({
+                    "name": name,
+                    "subject": subject,
+                    "classes": classes,
+                    "duty": duty
+                })
                 save_data(f"teachers_{school_name}.json", teachers)
                 st.success("Added!")
                 st.rerun()
     
     if teachers:
         for i, t in enumerate(teachers):
-            c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 1, 1])
-            with c1:
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+            with col1:
                 st.write(f"**{t['name']}**")
-            with c2:
+            with col2:
                 st.write(t.get('subject', '-'))
-            with c3:
-                st.write(t.get('duty', '-'))
-            with c4:
+            with col3:
                 st.write(t.get('classes', '-'))
-            with c5:
+            with col4:
+                st.write(t.get('duty', '-'))
+            with col5:
                 if st.button("🗑️", key=f"del_tea_{i}"):
                     teachers.pop(i)
                     save_data(f"teachers_{school_name}.json", teachers)
                     st.rerun()
             st.divider()
+    else:
+        st.info("No teachers added")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_classes():
-    st.markdown('<div class="glass-card"><h2>📋 Class Lists</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     classes = load_data(f"classes_{school_name}.json", [])
     
-    uploaded = st.file_uploader("📥 Import Excel", type=['xlsx', 'xls'], key="cls_upload")
-    if uploaded:
+    st.markdown('<div class="glass-card"><h2>📋 Class Lists</h2>', unsafe_allow_html=True)
+    
+    st.markdown("### Import Excel")
+    uploaded = st.file_uploader("📥 Import Excel File", type=['xlsx', 'xls'], key="cls_upload")
+    if uploaded is not None:
         df = pd.read_excel(uploaded)
+        st.write("Preview:")
         st.dataframe(df.head(), use_container_width=True)
-        class_name = st.text_input("Class name:", placeholder="e.g., Grade 4A", key="cls_name")
-        if st.button("💾 Save", use_container_width=True, key="cls_save"):
+        
+        class_name = st.text_input("Class name:", placeholder="e.g., Grade 4A", key="cls_name_input")
+        if st.button("💾 Save", use_container_width=True, key="cls_save_btn"):
             if class_name:
-                classes.append({"name": class_name, "students": df.to_dict('records'), "created": datetime.now().strftime("%Y-%m-%d")})
+                classes.append({
+                    "name": class_name,
+                    "students": df.to_dict('records'),
+                    "created": datetime.now().strftime("%Y-%m-%d")
+                })
                 save_data(f"classes_{school_name}.json", classes)
-                st.success(f"Saved '{class_name}'!")
+                st.success(f"Saved '{class_name}' with {len(df)} students!")
                 st.rerun()
     
+    st.markdown("### Saved Lists")
     if classes:
-        st.markdown("### Saved Lists")
         for i, cls in enumerate(classes):
             with st.expander(f"📋 {cls['name']} ({len(cls.get('students', []))} students)"):
                 if cls.get('students'):
                     st.dataframe(pd.DataFrame(cls['students']), use_container_width=True)
-                if st.button("🗑️ Delete", key=f"del_cls_{i}"):
+                if st.button("🗑️ Delete Class", key=f"del_cls_{i}"):
                     classes.pop(i)
                     save_data(f"classes_{school_name}.json", classes)
                     st.rerun()
+    else:
+        st.info("No saved class lists")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_qr():
     st.markdown('<div class="glass-card"><h2>📱 QR Codes</h2>', unsafe_allow_html=True)
-    t1, t2 = st.tabs(["Generate", "Scan"])
-    with t1:
-        qr_type = st.selectbox("Type:", ["book", "chair", "locker"], key="qr_type")
-        c1, c2 = st.columns(2)
-        with c1:
-            start = st.number_input("Start:", 1, 10000, 1, key="qr_start")
-        with c2:
-            end = st.number_input("End:", 1, 10000, 10, key="qr_end")
-        if st.button("Generate", use_container_width=True, key="qr_gen"):
+    
+    tab1, tab2 = st.tabs(["Generate", "Scan"])
+    
+    with tab1:
+        qr_type = st.selectbox("QR Type:", ["book", "chair", "locker"], key="qr_type_select")
+        col1, col2 = st.columns(2)
+        with col1:
+            start_num = st.number_input("Start Number:", 1, 10000, 1, key="qr_start_num")
+        with col2:
+            end_num = st.number_input("End Number:", 1, 10000, 10, key="qr_end_num")
+        
+        if st.button("Generate QR Codes", use_container_width=True, key="qr_gen_btn"):
             cols = st.columns(4)
-            for i in range(start, min(end + 1, start + 20)):
+            for i in range(start_num, min(end_num + 1, start_num + 20)):
                 qr = qrcode.QRCode(version=1, box_size=10, border=5)
                 qr.add_data(f"{qr_type}-{i}")
                 qr.make(fit=True)
@@ -1015,56 +954,77 @@ def render_qr():
                 buf = BytesIO()
                 img.save(buf, format="PNG")
                 b64 = base64.b64encode(buf.getvalue()).decode()
-                with cols[(i - start) % 4]:
-                    st.image(f"data:image/png;base64,{b64}", caption=f"{qr_type}:{i}", width=150)
-    with t2:
-        st.info("📷 Use device camera to scan QR codes")
-        manual = st.text_input("Or enter code manually:", placeholder="e.g., book-5", key="qr_manual")
-        if manual:
-            st.success(f"Scanned: {manual}")
+                with cols[(i - start_num) % 4]:
+                    st.image(f"data:image/png;base64,{b64}", caption=f"{qr_type}: {i}", width=150)
+    
+    with tab2:
+        st.info("📷 Use your device camera to scan QR codes")
+        manual_input = st.text_input("Or enter QR code manually:", placeholder="e.g., book-5", key="qr_manual_input")
+        if manual_input:
+            st.success(f"✅ Scanned: {manual_input}")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_chat():
-    st.markdown('<div class="glass-card"><h2>💬 Staff Chat</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     user = st.session_state.user
     users = load_data(f"users_{school_name}.json", [])
     messages = load_data(f"chat_messages_{school_name}.json", [])
     
+    st.markdown('<div class="glass-card"><h2>💬 Staff Chat</h2>', unsafe_allow_html=True)
+    
     other_users = [u for u in users if u['email'] != user['email']]
     
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        st.markdown("### Staff Online")
+    col1, col2 = st.columns([1, 3])
+    
+    with col1:
+        st.markdown("### 👥 Staff Online")
         for u in other_users:
-            if st.button(f"🟢 {u['name']} ({u['role']})", key=f"cu_{u['email']}", use_container_width=True):
+            if st.button(f"🟢 {u['name']}\n({u['role']})", key=f"chat_user_{u['email']}", use_container_width=True):
                 st.session_state.chat_with = u['email']
     
-    with c2:
+    with col2:
         if 'chat_with' in st.session_state:
             chat_with = st.session_state.chat_with
             chat_user = next((u for u in users if u['email'] == chat_with), None)
+            
             if chat_user:
-                st.markdown(f"### Chat with {chat_user['name']}")
+                st.markdown(f"### 💬 Chat with {chat_user['name']}")
+                
                 msgs = [m for m in messages if (m['from'] == user['email'] and m['to'] == chat_with) or (m['from'] == chat_with and m['to'] == user['email'])]
+                
                 for msg in sorted(msgs, key=lambda x: x['timestamp']):
                     is_mine = msg['from'] == user['email']
-                    bg = "rgba(233,69,96,0.4)" if is_mine else "rgba(255,255,255,0.1)"
+                    bg_color = "rgba(233,69,96,0.4)" if is_mine else "rgba(255,255,255,0.1)"
                     align = "flex-end" if is_mine else "flex-start"
-                    st.markdown(f'<div style="display:flex;justify-content:{align};margin:8px 0;"><div style="background:{bg};padding:10px 16px;border-radius:16px;max-width:70%;color:#FFF;"><strong>{msg["from_name"]}:</strong> {msg["message"]}<br><small style="color:rgba(255,255,255,0.5);">{msg["timestamp"][:16]}</small></div></div>', unsafe_allow_html=True)
+                    
+                    st.markdown(f"""
+                    <div style="display:flex;justify-content:{align};margin:8px 0;">
+                        <div style="background:{bg_color};padding:10px 16px;border-radius:16px;max-width:70%;color:#FFF;">
+                            <strong>{msg['from_name']}:</strong> {msg['message']}
+                            <br><small style="color:rgba(255,255,255,0.5);">{msg['timestamp'][:16]}</small>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
-                with st.form("frm_chat", clear_on_submit=True):
-                    msg_text = st.text_input("Type a message...", key="chat_input", placeholder="Write here...")
-                    if st.form_submit_button("📤", use_container_width=True):
+                with st.form("frm_chat_msg", clear_on_submit=True):
+                    msg_text = st.text_input("Type a message...", key="chat_msg_input", placeholder="Write your message here")
+                    if st.form_submit_button("📤 Send", use_container_width=True):
                         if msg_text:
-                            messages.append({"from": user['email'], "from_name": user['name'], "to": chat_with, "message": msg_text,
-                                           "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "id": generate_code("MSG")})
+                            messages.append({
+                                "from": user['email'],
+                                "from_name": user['name'],
+                                "to": chat_with,
+                                "message": msg_text,
+                                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "id": generate_code("MSG")
+                            })
                             save_data(f"chat_messages_{school_name}.json", messages)
                             st.rerun()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_system_overview():
-    st.markdown('<div class="glass-card"><h2>🔍 System Overview</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
     books = load_data(f"books_{school_name}.json", [])
     borrowed = load_data(f"borrowed_{school_name}.json", [])
@@ -1074,125 +1034,260 @@ def render_system_overview():
     users = load_data(f"users_{school_name}.json", [])
     classes = load_data(f"classes_{school_name}.json", [])
     messages = load_data(f"chat_messages_{school_name}.json", [])
+    audit_log = load_data(f"audit_log_{school_name}.json", [])
     
-    tb = sum(b.get('quantity', 0) for b in books)
-    al = len([b for b in borrowed if not b.get('returned')])
-    ov = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
-    af = len([f for f in furniture if not f.get('returned')])
+    total_books = sum(b.get('quantity', 0) for b in books)
+    active_loans = len([b for b in borrowed if not b.get('returned')])
+    overdue_count = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
+    active_furniture = len([f for f in furniture if not f.get('returned')])
     
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown(f'<div class="stat-card"><strong>🏫 School</strong><br>{st.session_state.school["name"]}<br>Admin: {st.session_state.school["admin_name"]}<br>Code: {st.session_state.school["invite_code"]}</div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown(f'<div class="stat-card"><strong>📚 Books</strong><br>Total: {tb}<br>Active: {al}<br>Overdue: {ov}<br>Available: {tb - al}</div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown(f'<div class="stat-card"><strong>👥 People</strong><br>Staff: {len(users)}<br>Teachers: {len(teachers)}<br>Members: {len(members)}<br>Classes: {len(classes)}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h2>🔍 System Overview</h2><h3>📊 Complete System Summary</h3>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="stat-card">
+            <strong>🏫 School</strong><br>
+            {st.session_state.school['name']}<br>
+            📍 {st.session_state.school.get('address', 'N/A')}<br>
+            👤 Admin: {st.session_state.school['admin_name']}<br>
+            📧 {st.session_state.school['admin_email']}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="stat-card">
+            <strong>📚 Books</strong><br>
+            Total: {total_books}<br>
+            Active Loans: {active_loans}<br>
+            Overdue: {overdue_count}<br>
+            Available: {total_books - active_loans}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        chairs = len([f for f in furniture if not f.get('returned') and f.get('chair')])
+        lockers = len([f for f in furniture if not f.get('returned') and f.get('locker')])
+        st.markdown(f"""
+        <div class="stat-card">
+            <strong>🪑 Furniture</strong><br>
+            Active Allocations: {active_furniture}<br>
+            Chairs: {chairs}<br>
+            Lockers: {lockers}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    col4, col5, col6 = st.columns(3)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="stat-card">
+            <strong>👥 People</strong><br>
+            Staff: {len(users)}<br>
+            Teachers: {len(teachers)}<br>
+            Members: {len(members)}<br>
+            Classes: {len(classes)}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col5:
+        st.markdown(f"""
+        <div class="stat-card">
+            <strong>💬 Communication</strong><br>
+            Messages: {len(messages)}<br>
+            Invite Code: {st.session_state.school['invite_code']}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col6:
+        st.markdown(f"""
+        <div class="stat-card">
+            <strong>📝 Activity</strong><br>
+            Log Entries: {len(audit_log)}<br>
+            Books Issued: {len(borrowed)}<br>
+            Furniture Records: {len(furniture)}
+        </div>
+        """, unsafe_allow_html=True)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_audit_log():
-    st.markdown('<div class="glass-card"><h2>📝 Audit Log</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
-    log = load_data(f"audit_log_{school_name}.json", [])
-    if log:
-        st.dataframe(pd.DataFrame(log), use_container_width=True)
-        if st.button("📎 Export", use_container_width=True, key="log_exp"):
+    audit_log = load_data(f"audit_log_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📝 Audit Log</h2>', unsafe_allow_html=True)
+    
+    search = st.text_input("Search...", placeholder="Search log entries", key="log_search")
+    
+    filtered = audit_log
+    if search:
+        filtered = [e for e in audit_log if search.lower() in e.get('action', '').lower() or search.lower() in e.get('details', '').lower() or search.lower() in e.get('user', '').lower()]
+    
+    if filtered:
+        st.dataframe(pd.DataFrame(filtered[-100:]), use_container_width=True)
+        if st.button("📎 Export", use_container_width=True, key="log_export_btn"):
             towrite = BytesIO()
-            pd.DataFrame(log).to_excel(towrite, index=False, engine='openpyxl')
+            pd.DataFrame(filtered).to_excel(towrite, index=False, engine='openpyxl')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
             st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="audit_log.xlsx">📥 Download</a>', unsafe_allow_html=True)
     else:
-        st.info("No entries")
+        st.info("No audit log entries")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_reports():
-    st.markdown('<div class="glass-card"><h2>📈 Reports</h2>', unsafe_allow_html=True)
     school_name = st.session_state.school['name']
-    report_type = st.selectbox("Report:", ["books", "furniture", "overdue", "complete"], key="rep_type")
-    if st.button("📊 Generate", use_container_width=True, key="rep_gen"):
+    
+    st.markdown('<div class="glass-card"><h2>📈 Reports</h2>', unsafe_allow_html=True)
+    
+    report_type = st.selectbox("Report Type:", ["books", "furniture", "overdue", "complete"], key="rep_type_select")
+    
+    if st.button("📊 Generate", use_container_width=True, key="rep_gen_btn"):
         if report_type == "books":
-            data = load_data(f"borrowed_{school_name}.json", [])
-            st.dataframe(pd.DataFrame(data), use_container_width=True)
-        elif report_type == "furniture":
-            data = load_data(f"furniture_{school_name}.json", [])
-            st.dataframe(pd.DataFrame(data), use_container_width=True)
-        elif report_type == "overdue":
-            data = load_data(f"borrowed_{school_name}.json", [])
-            overdue = [b for b in data if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()]
-            st.dataframe(pd.DataFrame(overdue), use_container_width=True) if overdue else st.success("No overdue!")
-        else:
             borrowed = load_data(f"borrowed_{school_name}.json", [])
-            st.write(f"Active: {len([b for b in borrowed if not b.get('returned')])} | Overdue: {len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])} | Teachers: {len(load_data(f'teachers_{school_name}.json', []))}")
+            if borrowed:
+                st.dataframe(pd.DataFrame(borrowed), use_container_width=True)
+            else:
+                st.info("No book records")
+        
+        elif report_type == "furniture":
+            furniture = load_data(f"furniture_{school_name}.json", [])
+            if furniture:
+                st.dataframe(pd.DataFrame(furniture), use_container_width=True)
+            else:
+                st.info("No furniture records")
+        
+        elif report_type == "overdue":
+            borrowed = load_data(f"borrowed_{school_name}.json", [])
+            today = datetime.now()
+            overdue = [b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today]
+            if overdue:
+                st.dataframe(pd.DataFrame(overdue), use_container_width=True)
+            else:
+                st.success("No overdue books!")
+        
+        elif report_type == "complete":
+            borrowed = load_data(f"borrowed_{school_name}.json", [])
+            furniture = load_data(f"furniture_{school_name}.json", [])
+            teachers = load_data(f"teachers_{school_name}.json", [])
+            
+            today = datetime.now()
+            active_books = len([b for b in borrowed if not b.get('returned')])
+            overdue_books = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today])
+            active_furniture = len([f for f in furniture if not f.get('returned')])
+            
+            st.write(f"📚 Active: {active_books} | 🔴 Overdue: {overdue_books} | 🪑 Furniture: {active_furniture} | 👨‍🏫 Teachers: {len(teachers)}")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_settings():
+    school_name = st.session_state.school['name']
+    
     st.markdown('<div class="glass-card"><h2>⚙️ Settings</h2>', unsafe_allow_html=True)
-    t1, t2, t3 = st.tabs(["Theme", "Data", "Staff"])
     
-    with t1:
-        wp = st.selectbox("Wallpaper:", list(WALLPAPERS.keys()), index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper), key="set_wp")
-        if st.button("Apply", use_container_width=True, key="set_apply"):
-            st.session_state.wallpaper = wp
+    tab1, tab2, tab3 = st.tabs(["🎨 Theme", "💾 Data", "👥 Staff"])
+    
+    with tab1:
+        st.markdown("### 🎨 Wallpapers")
+        wallpaper = st.selectbox("Choose Wallpaper:", list(WALLPAPERS.keys()), index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper), key="set_wallpaper")
+        if st.button("Apply Theme", use_container_width=True, key="set_apply_theme"):
+            st.session_state.wallpaper = wallpaper
             st.rerun()
-        if wp != "None":
-            st.image(WALLPAPERS[wp], width=400)
+        if wallpaper != "None":
+            st.image(WALLPAPERS[wallpaper], width=400, caption=wallpaper)
+        if st.button("🔄 Reset", use_container_width=True, key="set_reset_theme"):
+            st.session_state.wallpaper = "Library"
+            st.rerun()
     
-    with t2:
+    with tab2:
+        st.markdown("### 💾 Data Management")
+        
         col1, col2, col3 = st.columns(3)
+        
         with col1:
-            if st.button("📥 Backup", use_container_width=True, key="set_backup"):
-                school_name = st.session_state.school['name']
+            if st.button("📥 Backup", use_container_width=True, key="set_backup_btn"):
                 all_data = {}
                 for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages"]:
                     all_data[f] = load_data(f"{f}_{school_name}.json", [])
-                b64 = base64.b64encode(json.dumps(all_data, indent=2).encode()).decode()
-                st.markdown(f'<a href="data:application/json;base64,{b64}" download="srms_backup.json">📥 Download</a>', unsafe_allow_html=True)
+                json_str = json.dumps(all_data, indent=2)
+                b64 = base64.b64encode(json_str.encode()).decode()
+                st.markdown(f'<a href="data:application/json;base64,{b64}" download="srms_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json">📥 Download Backup</a>', unsafe_allow_html=True)
+        
         with col2:
-            uploaded = st.file_uploader("Restore:", type=['json'], key="set_restore")
-            if uploaded and st.button("📤 Restore", use_container_width=True, key="set_restore_btn"):
-                data = json.load(uploaded)
-                school_name = st.session_state.school['name']
-                for f, fd in data.items():
-                    save_data(f"{f}_{school_name}.json", fd)
-                st.success("Restored!")
-                st.rerun()
+            uploaded_file = st.file_uploader("📤 Restore Backup", type=['json'], key="set_restore_upload")
+            if uploaded_file is not None:
+                if st.button("📤 Restore", use_container_width=True, key="set_restore_btn"):
+                    try:
+                        data = json.load(uploaded_file)
+                        for f, fd in data.items():
+                            save_data(f"{f}_{school_name}.json", fd)
+                        st.success("Data restored successfully!")
+                        st.rerun()
+                    except:
+                        st.error("Invalid backup file!")
+        
         with col3:
-            if st.button("⚠️ Clear All", use_container_width=True, key="set_clear"):
-                if st.text_input("Type DELETE:", key="set_del") == "DELETE":
-                    school_name = st.session_state.school['name']
-                    for f in ["books", "members", "borrowed", "teachers", "classes", "furniture"]:
+            st.markdown("#### ⚠️ Danger Zone")
+            confirm_text = st.text_input("Type 'DELETE' to confirm:", placeholder="DELETE", key="set_delete_confirm")
+            if st.button("⚠️ Clear All Data", use_container_width=True, key="set_clear_btn"):
+                if confirm_text == "DELETE":
+                    for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages"]:
                         save_data(f"{f}_{school_name}.json", [])
-                    st.error("Cleared!")
+                    st.error("All data cleared!")
                     st.rerun()
+                else:
+                    st.warning("Type 'DELETE' to confirm")
     
-    with t3:
-        with st.form("frm_staff"):
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                email = st.text_input("Email:", placeholder="staff@school.edu")
-            with c2:
-                name = st.text_input("Name:", placeholder="Staff name")
-            with c3:
-                role = st.selectbox("Role:", ["teacher", "librarian", "admin"], key="set_role")
-            with c4:
-                pw = st.text_input("Password:", placeholder="Auto-generated", key="set_pw")
-            if st.form_submit_button("➕ Create", use_container_width=True):
+    with tab3:
+        st.markdown("### 👥 Staff Management")
+        
+        with st.form("frm_staff_settings"):
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                email = st.text_input("Email:", placeholder="staff@school.edu", key="set_staff_email")
+            with col2:
+                name = st.text_input("Name:", placeholder="Staff name", key="set_staff_name")
+            with col3:
+                role = st.selectbox("Role:", ["teacher", "librarian", "admin"], key="set_staff_role")
+            with col4:
+                password = st.text_input("Password:", placeholder="Auto-generated", key="set_staff_password")
+            
+            if st.form_submit_button("➕ Create Staff", use_container_width=True):
                 if email and name:
                     users = load_data(f"users_{school_name}.json", [])
-                    users.append({"name": name, "email": email, "role": role, "code": st.session_state.school['invite_code'],
-                                 "password": hash_password(pw or generate_code("", 8)), "staff_id": f"{role.upper()}-{generate_code('', 4)}",
-                                 "joined": datetime.now().strftime("%Y-%m-%d")})
+                    users.append({
+                        "name": name,
+                        "email": email,
+                        "role": role,
+                        "code": st.session_state.school['invite_code'],
+                        "password": hash_password(password or generate_code("", 8)),
+                        "staff_id": f"{role.upper()}-{generate_code('', 4)}",
+                        "joined": datetime.now().strftime("%Y-%m-%d"),
+                        "phone": ""
+                    })
                     save_data(f"users_{school_name}.json", users)
-                    st.success(f"Created {role}!")
+                    st.success(f"Created {role}: {name}")
                     st.rerun()
         
         users = load_data(f"users_{school_name}.json", [])
+        st.markdown("#### Current Staff")
         for i, u in enumerate(users):
-            st.write(f"**{u['name']}** - {u['role']} - {u['email']}")
-            if st.button("🗑️", key=f"del_staff_{i}"):
-                users.pop(i)
-                save_data(f"users_{school_name}.json", users)
-                st.rerun()
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.write(f"**{u['name']}** - {u['role'].upper()} - {u['email']}")
+            with col2:
+                st.write(f"ID: {u.get('staff_id', 'N/A')}")
+            with col3:
+                if u['role'] != 'admin' or len([x for x in users if x['role'] == 'admin']) > 1:
+                    if st.button("🗑️", key=f"del_staff_{i}"):
+                        users.pop(i)
+                        save_data(f"users_{school_name}.json", users)
+                        st.rerun()
+            st.divider()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ============== MAIN ==============
