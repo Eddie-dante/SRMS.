@@ -37,213 +37,67 @@ st.set_page_config(
 DATA_DIR = Path("srms_data")
 DATA_DIR.mkdir(exist_ok=True)
 
-class Database:
-    def __init__(self):
-        self.db_path = DATA_DIR / "srms.db"
-        self.init_db()
-    
-    @contextmanager
-    def get_connection(self):
-        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+# Add this code right after the Database class initialization:
+def ensure_database_works():
+    """Ensure database is working properly"""
+    try:
+        # Force create the database file
+        db_path = DATA_DIR / "srms.db"
+        
+        # Create a direct connection without the context manager
+        conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            raise e
-        finally:
-            conn.close()
-    
-    def init_db(self):
-        with self.get_connection() as conn:
-            conn.executescript('''
-                CREATE TABLE IF NOT EXISTS schools (
-                    name TEXT PRIMARY KEY,
-                    address TEXT,
-                    admin_name TEXT,
-                    admin_email TEXT,
-                    admin_phone TEXT,
-                    invite_code TEXT UNIQUE,
-                    created TEXT,
-                    is_active INTEGER DEFAULT 1
-                );
-                
-                CREATE TABLE IF NOT EXISTS users (
-                    email TEXT,
-                    school_name TEXT,
-                    name TEXT,
-                    phone TEXT,
-                    staff_id TEXT,
-                    code TEXT,
-                    password TEXT,
-                    role TEXT,
-                    joined TEXT,
-                    is_active INTEGER DEFAULT 1,
-                    last_login TEXT,
-                    PRIMARY KEY (email, school_name)
-                );
-                
-                CREATE TABLE IF NOT EXISTS books (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    school_name TEXT,
-                    title TEXT,
-                    type TEXT,
-                    quantity INTEGER,
-                    created_by TEXT,
-                    created_at TEXT,
-                    UNIQUE(school_name, title)
-                );
-                
-                CREATE TABLE IF NOT EXISTS borrowed (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    name TEXT,
-                    adm TEXT,
-                    form TEXT,
-                    stream TEXT,
-                    bookTitle TEXT,
-                    bookNo TEXT,
-                    borrowDate TEXT,
-                    returnDate TEXT,
-                    returned INTEGER DEFAULT 0,
-                    actualReturnDate TEXT,
-                    issued_by TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS furniture (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    name TEXT,
-                    adm TEXT,
-                    chair TEXT,
-                    locker TEXT,
-                    date TEXT,
-                    returned INTEGER DEFAULT 0,
-                    issued_by TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS members (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    name TEXT,
-                    added_by TEXT,
-                    added_at TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS teachers (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    name TEXT,
-                    subject TEXT,
-                    classes TEXT,
-                    duty TEXT,
-                    added_by TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS classes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    school_name TEXT,
-                    name TEXT,
-                    students TEXT,
-                    created_by TEXT,
-                    created TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS audit_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    school_name TEXT,
-                    timestamp TEXT,
-                    user TEXT,
-                    user_email TEXT,
-                    action TEXT,
-                    details TEXT,
-                    ip_address TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS chat_messages (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    from_email TEXT,
-                    from_name TEXT,
-                    to_email TEXT,
-                    message TEXT,
-                    timestamp TEXT,
-                    attachment TEXT,
-                    emoji TEXT,
-                    read_status INTEGER DEFAULT 0,
-                    deleted_by_sender INTEGER DEFAULT 0,
-                    deleted_by_receiver INTEGER DEFAULT 0
-                );
-                
-                CREATE TABLE IF NOT EXISTS forum_messages (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    from_email TEXT,
-                    from_name TEXT,
-                    role TEXT,
-                    message TEXT,
-                    timestamp TEXT,
-                    attachment TEXT,
-                    emoji TEXT,
-                    is_deleted INTEGER DEFAULT 0
-                );
-                
-                CREATE TABLE IF NOT EXISTS notepad (
-                    id TEXT PRIMARY KEY,
-                    school_name TEXT,
-                    author TEXT,
-                    author_email TEXT,
-                    content TEXT,
-                    title TEXT,
-                    timestamp TEXT,
-                    is_private INTEGER DEFAULT 1,
-                    shared_with TEXT,
-                    is_deleted INTEGER DEFAULT 0
-                );
-                
-                CREATE TABLE IF NOT EXISTS wallpapers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    school_name TEXT,
-                    name TEXT,
-                    url TEXT,
-                    is_custom INTEGER DEFAULT 0,
-                    uploaded_by TEXT,
-                    uploaded_at TEXT
-                );
-                
-                CREATE TABLE IF NOT EXISTS password_resets (
-                    email TEXT,
-                    school_name TEXT,
-                    token TEXT,
-                    expiry TEXT,
-                    used INTEGER DEFAULT 0,
-                    PRIMARY KEY (email, school_name)
-                );
-                
-                CREATE TABLE IF NOT EXISTS system_settings (
-                    school_name TEXT PRIMARY KEY,
-                    max_borrow_days INTEGER DEFAULT 14,
-                    max_books_per_student INTEGER DEFAULT 3,
-                    auto_return_reminders INTEGER DEFAULT 0,
-                    allow_student_registration INTEGER DEFAULT 0,
-                    maintenance_mode INTEGER DEFAULT 0
-                );
-            ''')
-            
-            # Add indexes for better performance
-            conn.executescript('''
-                CREATE INDEX IF NOT EXISTS idx_borrowed_school ON borrowed(school_name);
-                CREATE INDEX IF NOT EXISTS idx_borrowed_returned ON borrowed(school_name, returned);
-                CREATE INDEX IF NOT EXISTS idx_furniture_school ON furniture(school_name);
-                CREATE INDEX IF NOT EXISTS idx_chat_messages_school ON chat_messages(school_name);
-                CREATE INDEX IF NOT EXISTS idx_chat_messages_from_to ON chat_messages(school_name, from_email, to_email);
-                CREATE INDEX IF NOT EXISTS idx_forum_school ON forum_messages(school_name);
-                CREATE INDEX IF NOT EXISTS idx_notepad_school ON notepad(school_name);
-                CREATE INDEX IF NOT EXISTS idx_audit_log_school ON audit_log(school_name);
-            ''')
+        
+        # Create essential tables manually
+        conn.execute('''CREATE TABLE IF NOT EXISTS schools (
+            name TEXT PRIMARY KEY,
+            address TEXT,
+            admin_name TEXT,
+            admin_email TEXT,
+            admin_phone TEXT,
+            invite_code TEXT,
+            created TEXT,
+            is_active INTEGER DEFAULT 1
+        )''')
+        
+        conn.execute('''CREATE TABLE IF NOT EXISTS users (
+            email TEXT,
+            school_name TEXT,
+            name TEXT,
+            phone TEXT,
+            staff_id TEXT,
+            code TEXT,
+            password TEXT,
+            role TEXT,
+            joined TEXT,
+            is_active INTEGER DEFAULT 1,
+            last_login TEXT,
+            PRIMARY KEY (email, school_name)
+        )''')
+        
+        conn.execute('''CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_name TEXT,
+            timestamp TEXT,
+            user TEXT,
+            user_email TEXT,
+            action TEXT,
+            details TEXT,
+            ip_address TEXT
+        )''')
+        
+        conn.commit()
+        conn.close()
+        
+        print("✅ Essential tables created successfully!")
+        return True
+    except Exception as e:
+        print(f"❌ Error creating essential tables: {str(e)}")
+        return False
 
+# Call this after db initialization
 db = Database()
+ensure_database_works()
 
 # ============ WALLPAPERS DATABASE ============
 WALLPAPERS = {
