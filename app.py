@@ -1,1908 +1,1618 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>SRMS - School Resource Management System by WeGEM</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"></script>
-    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+# app.py - SRMS - School Resource Management System by WeGEM
+import streamlit as st
+import pandas as pd
+import json
+import hashlib
+from datetime import datetime, timedelta
+from pathlib import Path
+import random
+import string
+import base64
+from io import BytesIO
+import qrcode
+from PIL import Image
+import plotly.express as px
+import plotly.graph_objects as go
+import time
+
+# Page config
+st.set_page_config(
+    page_title="SRMS - School Resource Management System",
+    page_icon="🏫",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ============ 100+ WALLPAPERS ============
+WALLPAPERS = {
+    "None": "",
+    # School & Education
+    "Library": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920",
+    "Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920",
+    "School Building": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920",
+    "Study Desk": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920",
+    "Bookshelf": "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920",
+    "Graduation": "https://images.unsplash.com/photo-1523050854058-8df90910f68e?w=1920",
+    
+    # Nature & Landscapes
+    "Sunset": "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920",
+    "Ocean": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
+    "Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
+    "Mountain": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
+    "Desert": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920",
+    "Waterfall": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
+    "Cherry Blossom": "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920",
+    "Lavender Field": "https://images.unsplash.com/photo-1499002238440-d264edd596ec?w=1920",
+    "Autumn Forest": "https://images.unsplash.com/photo-1507783548227-544c3b8fc065?w=1920",
+    "Winter Snow": "https://images.unsplash.com/photo-1477601263568-180e2c6d046e?w=1920",
+    "Spring Meadow": "https://images.unsplash.com/photo-1490750967868-88aa4cef14d0?w=1920",
+    "Summer Field": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920",
+    "Tropical Beach": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
+    "Mountain Lake": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
+    "Foggy Forest": "https://images.unsplash.com/photo-1485230405346-71acb9518d9b?w=1920",
+    "Golden Hour": "https://images.unsplash.com/photo-1501856777435-29877ed80a3d?w=1920",
+    "Blue Lagoon": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1920",
+    "Zen Garden": "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1920",
+    "Palm Trees": "https://images.unsplash.com/photo-1509233725247-49e657c54213?w=1920",
+    "Savanna": "https://images.unsplash.com/photo-1516426122078-c23e76319801?w=1920",
+    "Iceberg": "https://images.unsplash.com/photo-1540979388789-7cee28a1cdc9?w=1920",
+    
+    # City & Architecture
+    "City Lights": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920",
+    "Neon City": "https://images.unsplash.com/photo-1557682257-2f9c97a8a469?w=1920",
+    "Bridge Night": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920",
+    "Modern Building": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920",
+    "Tokyo Street": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920",
+    "New York": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1920",
+    
+    # Space & Abstract
+    "Galaxy": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
+    "Milky Way": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
+    "Starfield": "https://images.unsplash.com/photo-1557683320-2d5001d5e9c5?w=1920",
+    "Aurora": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920",
+    "Nebula": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
+    "Abstract Waves": "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920",
+    "Geometric": "https://images.unsplash.com/photo-1557683311-eac922347aa1?w=1920",
+    "Color Splash": "https://images.unsplash.com/photo-1557683304-6733ba7e4d6f?w=1920",
+    "Purple Haze": "https://images.unsplash.com/photo-1557682257-2f9c97a8a469?w=1920",
+    "Rainbow": "https://images.unsplash.com/photo-1511300636408-a63a89df3482?w=1920",
+    "Clouds": "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?w=1920",
+    "Stars": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
+    "Starry Night": "https://images.unsplash.com/photo-1557683320-2d5001d5e9c5?w=1920",
+    "Nature Leaves": "https://images.unsplash.com/photo-1557683316-973673baf926?w=1920",
+    
+    # Anime Style (5 wallpapers)
+    "Anime Sunset": "https://images.unsplash.com/photo-1578632767115-351597cf1bfe?w=1920",
+    "Anime Sky": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1920",
+    "Anime City": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920",
+    "Anime Garden": "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920",
+    "Anime Night": "https://images.unsplash.com/photo-1557682257-2f9c97a8a469?w=1920",
+    
+    # Additional Beautiful Wallpapers
+    "Coral Reef": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
+    "Bamboo Forest": "https://images.unsplash.com/photo-1518531933039-315f5d4a6b1a?w=1920",
+    "Volcano": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1920",
+    "Canyon": "https://images.unsplash.com/photo-1474044159687-1ee9f3a51722?w=1920",
+    "Northern Lights": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920",
+    "Sunflower Field": "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1920",
+    "Rose Garden": "https://images.unsplash.com/photo-1490750967868-88aa4cef14d0?w=1920",
+    "Rainforest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
+    "Alps": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920",
+    "Sahara": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920",
+}
+
+# ============ EMOJI PICKER ============
+EMOJI_CATEGORIES = {
+    "😀 Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😌", "😍", "🥰", "😘", "😗", "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐", "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬", "😮", "😯", "😲", "😳", "🥺", "😢", "😭", "😤", "😡", "🤬", "😈", "👿", "💀", "☠️"],
+    "👍 Gestures": ["👍", "👎", "👌", "✌️", "🤞", "🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋", "🤏", "✍️", "👏", "🙌", "🫶", "🤝", "🙏"],
+    "❤️ Hearts": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟"],
+    "📚 School": ["📚", "📖", "📝", "✏️", "🖊️", "📏", "📐", "🎓", "🏫", "📋", "📎", "🖇️", "🗂️", "📁", "📌", "📍", "✂️", "🖍️"],
+    "🎯 Objects": ["🎯", "⭐", "🌟", "✨", "🔥", "💯", "✅", "❌", "⚠️", "🔔", "🔕", "📢", "📣", "💡", "🔦", "💰", "🎁", "🏆", "🥇", "🥈", "🥉", "📅", "⏰", "🔑", "🔒", "🔓"],
+}
+
+def get_premium_css(wallpaper=None):
+    wallpaper_url = WALLPAPERS.get(wallpaper, "")
+    bg_style = f"background-image: url('{wallpaper_url}'); background-size: cover; background-position: center; background-attachment: fixed;" if wallpaper_url else "background: linear-gradient(135deg, #0a0e27, #1a1f4e, #0f3460);"
+    
+    return f"""
     <style>
-        :root {
-            --primary: #0a0e27;
-            --accent: #e94560;
-            --gold: #d4af37;
-            --gold-light: #f0d060;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --info: #0f3460;
-            --border-radius: 12px;
-            --transition: all 0.3s ease;
-            --glass-bg: rgba(255, 255, 255, 0.12);
-            --glass-bg-input: rgba(255, 255, 255, 0.08);
-            --text-color: rgba(255, 255, 255, 0.95);
-            --text-secondary: rgba(255, 255, 255, 0.75);
-            --text-muted: rgba(255, 255, 255, 0.55);
-            --border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--primary);
-            min-height: 100vh;
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            color: var(--text-color);
-            position: relative;
-        }
-
-        /* Dark overlay for readability */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 14, 39, 0.7);
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .overlay {
-            position: relative;
-            z-index: 1;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* Startup Page */
-        .startup-page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .startup-particles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .startup-particle {
-            position: absolute;
-            background: rgba(212, 175, 55, 0.2);
-            border-radius: 50%;
-            animation: floatUp 15s infinite linear;
-        }
-
-        @keyframes floatUp {
-            0% { transform: translateY(100vh) scale(0); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
-        }
-
-        .startup-logo-container {
-            text-align: center;
-            position: relative;
-            z-index: 10;
-            background: rgba(10, 14, 39, 0.8);
-            padding: 40px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-        }
-
-        .logo-main {
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, #d4af37, #f0d060);
-            border-radius: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            font-weight: 900;
-            color: #0a0e27;
-            margin: 0 auto 20px;
-            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.4);
-        }
-
-        .system-name {
-            font-size: 3em;
-            font-weight: 900;
-            background: linear-gradient(180deg, #f0d060, #d4af37);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: 6px;
-        }
-
-        .system-subtitle {
-            font-size: 1.2em;
-            color: rgba(255, 255, 255, 0.9);
-            margin: 10px 0;
-            font-weight: 300;
-        }
-
-        .credits {
-            font-size: 1em;
-            color: rgba(212, 175, 55, 0.9);
-            margin-bottom: 30px;
-        }
-
-        .startup-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            width: 350px;
-        }
-
-        .startup-btn {
-            padding: 16px 30px;
-            border: 2px solid transparent;
-            border-radius: 50px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            letter-spacing: 1px;
-            width: 100%;
-            text-transform: uppercase;
-        }
-
-        .startup-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .startup-btn-login {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            color: white;
-        }
-
-        .startup-btn-signup {
-            background: rgba(40, 167, 69, 0.9);
-            border-color: #28a745;
-            color: white;
-        }
-
-        .startup-btn-create {
-            background: linear-gradient(135deg, #d4af37, #b8941f);
-            border-color: #d4af37;
-            color: #0a0e27;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* Notification */
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 600;
-            z-index: 10000;
-            animation: slideIn 0.4s ease;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .notification.success { background: rgba(40, 167, 69, 0.8); }
-        .notification.error { background: rgba(220, 53, 69, 0.8); }
-        .notification.info { background: rgba(23, 162, 184, 0.8); }
-
-        @keyframes slideIn {
-            from { transform: translateX(120%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        /* Main App */
-        .main-container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            padding: 25px;
-            border: 1px solid var(--border-color);
-        }
-
-        h1, h2, h3 {
-            color: white;
-            margin-bottom: 15px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        h2 { border-left: 4px solid var(--accent); padding-left: 15px; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            font-size: 13px;
-            background: rgba(255, 255, 255, 0.05);
-            color: white;
-        }
-
-        th, td {
-            border: 1px solid var(--border-color);
-            padding: 10px;
-            text-align: left;
-        }
-
-        th {
-            background: rgba(10, 14, 39, 0.8);
-            color: white;
-        }
-
-        button {
-            margin: 5px;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: var(--transition);
-            color: white;
-        }
-
-        button:hover { transform: translateY(-2px); }
-        button:active { transform: scale(0.95); }
-
-        .btn-primary { background: rgba(233, 69, 96, 0.8); }
-        .btn-secondary { background: rgba(15, 52, 96, 0.8); }
-        .btn-danger { background: rgba(220, 53, 69, 0.8); }
-        .btn-success { background: rgba(40, 167, 69, 0.8); }
-        .btn-gold {
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.9), rgba(184, 148, 31, 0.9));
-            color: #0a0e27;
-            font-weight: 700;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: white;
-            font-size: 0.9em;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
-            background: var(--glass-bg-input);
-            color: white;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            border-color: var(--accent);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.2);
-        }
-
-        select {
-            color: white;
-            background: rgba(15, 52, 96, 0.5);
-        }
-
-        select option {
-            background: #1a1f4e;
-            color: white;
-        }
-
-        .settings-group {
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 25px;
-            margin-bottom: 25px;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .scrollable-table {
-            max-height: 500px;
-            overflow: auto;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-        }
-
-        .nav-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
-            padding: 15px;
-            border-bottom: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: var(--border-radius);
-        }
-
-        .nav-buttons button {
-            background: rgba(255, 255, 255, 0.08);
-            color: white;
-            border: 1px solid var(--border-color);
-        }
-
-        .nav-buttons button:hover,
-        .nav-buttons button.active-tab {
-            background: rgba(233, 69, 96, 0.7);
-            color: white;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            padding: 25px;
-            border-radius: var(--border-radius);
-            border: 1px solid var(--border-color);
-        }
-
-        .stat-value {
-            font-size: 2em;
-            font-weight: 800;
-            color: white;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.9em;
-        }
-
-        .school-code-banner {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 2px dashed rgba(233, 69, 96, 0.4);
-            border-radius: var(--border-radius);
-            padding: 20px;
-            margin-bottom: 25px;
-            text-align: center;
-        }
-
-        .invite-code {
-            font-size: 2em;
-            font-weight: 800;
-            letter-spacing: 6px;
-            color: white;
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px 20px;
-            border-radius: 8px;
-            display: inline-block;
-        }
-
-        .center { text-align: center; }
-
-        .role-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .role-admin { background: rgba(233, 69, 96, 0.8); }
-        .role-teacher { background: rgba(15, 52, 96, 0.8); }
-        .role-librarian { background: rgba(40, 167, 69, 0.8); }
-
-        .overdue { background: rgba(248, 215, 218, 0.25); color: #ff6b6b; font-weight: bold; }
-
-        .filter-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            margin: 4px;
-            border: 1px solid var(--border-color);
-        }
-
-        .filter-badge.active {
-            background: rgba(233, 69, 96, 0.7);
-            color: white;
-        }
-
-        .filter-badge:not(.active) {
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-secondary);
-        }
-
-        /* Chat Styles */
-        .chat-container {
-            display: flex;
-            height: 600px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        .chat-sidebar {
-            width: 250px;
-            background: rgba(10, 14, 39, 0.8);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border-color);
-            color: white;
-            font-weight: 700;
-        }
-
-        .chat-users {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        .chat-user {
-            padding: 12px 15px;
-            cursor: pointer;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            transition: var(--transition);
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .chat-user:hover, .chat-user.active {
-            background: rgba(233, 69, 96, 0.4);
-        }
-
-        .chat-user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.2em;
-            flex-shrink: 0;
-            background: linear-gradient(135deg, var(--accent), var(--info));
-        }
-
-        .chat-main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border-color);
-            color: white;
-            font-weight: 700;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .chat-message {
-            display: flex;
-            gap: 10px;
-            max-width: 70%;
-        }
-
-        .chat-message.mine {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
-
-        .chat-message-content {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 12px 16px;
-            border-radius: 16px;
-            color: white;
-            font-size: 0.9em;
-        }
-
-        .chat-message.mine .chat-message-content {
-            background: rgba(233, 69, 96, 0.5);
-        }
-
-        .chat-message-time {
-            font-size: 0.7em;
-            color: var(--text-muted);
-            margin-top: 4px;
-            text-align: right;
-        }
-
-        .chat-input-area {
-            padding: 15px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .chat-input-area input {
-            flex: 1;
-            padding: 12px;
-            border-radius: 25px;
-            border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-size: 14px;
-        }
-
-        .chat-input-area button {
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2em;
-        }
-
-        .emoji-picker {
-            position: absolute;
-            bottom: 60px;
-            right: 20px;
-            background: #1a1f4e;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 10px;
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 5px;
-            z-index: 1000;
-        }
-
-        .emoji-btn {
-            font-size: 20px;
-            padding: 5px;
-            cursor: pointer;
-            border: none;
-            background: none;
-            transition: var(--transition);
-        }
-
-        .emoji-btn:hover {
-            transform: scale(1.3);
-        }
-
-        /* Word Processor Styles */
-        .word-processor {
-            background: white;
-            color: #333;
-            border-radius: 8px;
-            padding: 20px;
-            min-height: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-
-        .word-toolbar {
-            display: flex;
-            gap: 10px;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .word-toolbar button, .word-toolbar select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-            cursor: pointer;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .word-toolbar button:hover {
-            background: #e9ecef;
-        }
-
-        .word-content {
-            min-height: 300px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            outline: none;
-            font-size: 14px;
-            line-height: 1.6;
-            background: white;
-            color: #333;
-        }
-
-        .word-content:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
-        }
-
-        /* Wallpaper Grid */
-        .wallpaper-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-            max-height: 400px;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        .wallpaper-option {
-            cursor: pointer;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 3px solid transparent;
-            transition: var(--transition);
-            aspect-ratio: 16/10;
-            position: relative;
-        }
-
-        .wallpaper-option:hover {
-            transform: scale(1.05);
-            border-color: var(--accent);
-        }
-
-        .wallpaper-option img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .wallpaper-option.selected {
-            border-color: var(--success);
-            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.4);
-        }
-
-        .wallpaper-label {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px;
-            font-size: 10px;
-            text-align: center;
-        }
-
-        /* File attachment */
-        .attachment-preview {
-            display: inline-block;
-            padding: 5px 10px;
-            background: rgba(233, 69, 96, 0.3);
-            border-radius: 8px;
-            margin: 5px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-muted);
-            font-size: 12px;
-            margin-top: 20px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        footer .wegem-credit {
-            color: #d4af37;
-            font-weight: 700;
-        }
-
-        @media (max-width: 768px) {
-            .startup-logo-container { padding: 20px; }
-            .startup-buttons { width: 90%; }
-            .chat-container { flex-direction: column; height: auto; }
-            .chat-sidebar { width: 100%; max-height: 200px; }
-            .chat-message { max-width: 90%; }
-            .nav-buttons { font-size: 11px; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * {{ font-family: 'Inter', sans-serif; }}
+        
+        .stApp {{ {bg_style} }}
+        .stApp > header {{ background: rgba(10,14,39,0.85) !important; backdrop-filter: blur(30px) !important; border-bottom: 2px solid rgba(212,175,55,0.3) !important; }}
+        .main .block-container {{ background: rgba(10,14,39,0.5) !important; backdrop-filter: blur(25px) !important; border-radius: 20px !important; padding: 2rem !important; margin: 1rem !important; border: 1px solid rgba(212,175,55,0.2) !important; }}
+        
+        section[data-testid="stSidebar"] {{ background: linear-gradient(180deg, #0a0e27 0%, #1a1f4e 50%, #0f3460 100%) !important; }}
+        section[data-testid="stSidebar"] > div {{ background: rgba(0,0,0,0.4) !important; padding: 1rem !important; }}
+        section[data-testid="stSidebar"] * {{ color: #FFFFFF !important; text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }}
+        section[data-testid="stSidebar"] .stButton button {{ background: rgba(255,255,255,0.1) !important; border: 1px solid rgba(212,175,55,0.3) !important; color: #FFFFFF !important; text-align: left !important; padding: 10px 15px !important; margin: 2px 0 !important; font-size: 0.9rem !important; box-shadow: none !important; }}
+        section[data-testid="stSidebar"] .stButton button:hover {{ background: rgba(233,69,96,0.4) !important; border-color: rgba(233,69,96,0.6) !important; }}
+        section[data-testid="stSidebar"] .streamlit-expanderHeader {{ background: rgba(212,175,55,0.2) !important; border: 1px solid rgba(212,175,55,0.3) !important; color: #FFD700 !important; font-weight: 700 !important; }}
+        
+        .main .block-container h1, .main .block-container h2, .main .block-container h3, .main .block-container h4 {{ color: #FFFFFF !important; text-shadow: 0 2px 10px rgba(0,0,0,0.6) !important; }}
+        .main .block-container p, .main .block-container span, .main .block-container label {{ color: #FFFFFF !important; text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }}
+        
+        .glass-card {{ background: rgba(255,255,255,0.12) !important; backdrop-filter: blur(20px) !important; border-radius: 16px !important; padding: 25px !important; margin: 15px 0 !important; border: 1px solid rgba(212,175,55,0.25) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important; }}
+        .stat-card {{ background: rgba(255,255,255,0.08) !important; backdrop-filter: blur(15px) !important; padding: 25px !important; border-radius: 16px !important; border-left: 4px solid #e94560 !important; border: 1px solid rgba(255,255,255,0.15) !important; text-align: center !important; margin: 8px 0 !important; }}
+        .stat-value {{ font-size: 2.5em !important; font-weight: 900 !important; color: #FFFFFF !important; }}
+        .stat-label {{ color: rgba(255,255,255,0.75) !important; font-size: 0.9em !important; font-weight: 600 !important; }}
+        
+        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input {{ background: rgba(255,255,255,0.95) !important; border: 2px solid rgba(212,175,55,0.4) !important; border-radius: 10px !important; padding: 10px 15px !important; color: #1a1a1a !important; font-weight: 500 !important; }}
+        .stTextInput input::placeholder {{ color: #999 !important; }}
+        .stSelectbox > div > div {{ background: rgba(255,255,255,0.95) !important; border: 2px solid rgba(212,175,55,0.4) !important; border-radius: 10px !important; }}
+        .stSelectbox [data-baseweb="select"] * {{ color: #1a1a1a !important; }}
+        
+        .stButton button {{ background: linear-gradient(135deg, #e94560, #c62a47) !important; border: none !important; border-radius: 10px !important; color: white !important; font-weight: 600 !important; padding: 10px 20px !important; box-shadow: 0 4px 15px rgba(233,69,96,0.3) !important; transition: all 0.3s ease !important; }}
+        .stButton button:hover {{ transform: translateY(-2px) !important; box-shadow: 0 8px 25px rgba(233,69,96,0.5) !important; }}
+        
+        .stDataFrame {{ background: rgba(255,255,255,0.08) !important; backdrop-filter: blur(15px) !important; border-radius: 12px !important; border: 1px solid rgba(212,175,55,0.3) !important; }}
+        .stDataFrame th {{ background: rgba(233,69,96,0.8) !important; color: #FFFFFF !important; font-weight: 700 !important; }}
+        .stDataFrame td {{ background: rgba(255,255,255,0.05) !important; color: #FFFFFF !important; }}
+        
+        .school-code-banner {{ background: rgba(255,255,255,0.1) !important; backdrop-filter: blur(15px) !important; border: 2px dashed rgba(233,69,96,0.4) !important; border-radius: 16px !important; padding: 25px !important; text-align: center !important; }}
+        .invite-code {{ font-family: 'Courier New', monospace !important; font-size: 2.5em !important; font-weight: 800 !important; letter-spacing: 8px !important; color: #FFFFFF !important; }}
+        
+        .stTabs [data-baseweb="tab-list"] {{ background: rgba(255,255,255,0.08) !important; border-radius: 12px !important; padding: 4px !important; }}
+        .stTabs [data-baseweb="tab"] {{ color: rgba(255,255,255,0.7) !important; }}
+        .stTabs [aria-selected="true"] {{ background: #e94560 !important; color: #FFFFFF !important; border-radius: 8px !important; }}
+        
+        .emoji-btn {{ font-size: 1.5em !important; padding: 5px 10px !important; cursor: pointer !important; background: transparent !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 8px !important; margin: 2px !important; transition: all 0.2s ease !important; }}
+        .emoji-btn:hover {{ background: rgba(233,69,96,0.3) !important; transform: scale(1.2) !important; }}
+        
+        .forum-message {{ background: rgba(255,255,255,0.08) !important; backdrop-filter: blur(10px) !important; border-radius: 12px !important; padding: 12px 16px !important; margin: 8px 0 !important; border: 1px solid rgba(255,255,255,0.15) !important; }}
+        .forum-message:hover {{ background: rgba(255,255,255,0.12) !important; }}
+        
+        @media (max-width: 768px) {{ .main .block-container {{ padding: 1rem !important; margin: 0.5rem !important; }} }}
     </style>
-</head>
-<body>
-    <div class="overlay" id="mainOverlay">
-        <!-- STARTUP PAGE -->
-        <div id="startupPage" class="startup-page">
-            <div class="startup-particles" id="startupParticles"></div>
-            <div class="startup-logo-container">
-                <div class="logo-main">SRMS</div>
-                <div class="system-name">SRMS</div>
-                <div class="system-subtitle">School Resource Management System</div>
-                <div class="credits">by <span style="color:#f0d060;font-weight:700;">WeGEM</span> (Edwin)</div>
-                <div class="startup-buttons" id="startupButtons">
-                    <button class="startup-btn startup-btn-login" id="btnLogin">🔑 Staff Login</button>
-                    <button class="startup-btn startup-btn-signup" id="btnSignup">📝 Staff Sign Up</button>
-                    <button class="startup-btn startup-btn-create" id="btnCreate">🏫 Create School</button>
-                </div>
-                <div id="startupFormsContainer" style="margin-top: 30px; width: 100%; max-width: 500px;"></div>
-            </div>
+    """
+
+# Initialize session state
+if 'user' not in st.session_state:
+    st.session_state.user = None
+if 'school' not in st.session_state:
+    st.session_state.school = None
+if 'page' not in st.session_state:
+    st.session_state.page = 'startup'
+if 'wallpaper' not in st.session_state:
+    st.session_state.wallpaper = "Library"
+if 'current_section' not in st.session_state:
+    st.session_state.current_section = 'dashboard'
+if 'action' not in st.session_state:
+    st.session_state.action = None
+if 'show_admin_secret' not in st.session_state:
+    st.session_state.show_admin_secret = False
+if 'secret_key_combo' not in st.session_state:
+    st.session_state.secret_key_combo = ""
+
+st.markdown(get_premium_css(st.session_state.wallpaper), unsafe_allow_html=True)
+
+DATA_DIR = Path("srms_data")
+DATA_DIR.mkdir(exist_ok=True)
+
+def load_data(filename, default=None):
+    if default is None:
+        default = {}
+    filepath = DATA_DIR / filename
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return default
+
+def save_data(filename, data):
+    with open(DATA_DIR / filename, 'w') as f:
+        json.dump(data, f, indent=2)
+
+def generate_code(prefix="", length=8):
+    chars = string.ascii_uppercase + string.digits
+    return prefix + ''.join(random.choices(chars, k=length))
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def is_admin():
+    return st.session_state.user and st.session_state.user.get('role') == 'admin'
+
+def add_audit_entry(action, details):
+    school_name = st.session_state.school['name']
+    audit_log = load_data(f"audit_log_{school_name}.json", [])
+    audit_log.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "user": st.session_state.user['name'],
+        "action": action,
+        "details": details
+    })
+    if len(audit_log) > 500:
+        audit_log = audit_log[-500:]
+    save_data(f"audit_log_{school_name}.json", audit_log)
+
+def check_duplicate_assignment(school_name, adm, item_type, item_number):
+    """Check if a student already has an item assigned"""
+    if item_type == 'book':
+        borrowed = load_data(f"borrowed_{school_name}.json", [])
+        return any(b for b in borrowed if b.get('adm') == adm and b.get('bookNo') == item_number and not b.get('returned'))
+    elif item_type == 'chair':
+        furniture = load_data(f"furniture_{school_name}.json", [])
+        return any(f for f in furniture if f.get('adm') == adm and f.get('chair') == item_number and not f.get('returned'))
+    elif item_type == 'locker':
+        furniture = load_data(f"furniture_{school_name}.json", [])
+        return any(f for f in furniture if f.get('adm') == adm and f.get('locker') == item_number and not f.get('returned'))
+    return False
+
+# ============== STARTUP PAGE ==============
+def startup_page():
+    st.markdown("""
+    <div class="glass-card" style="text-align: center; max-width: 600px; margin: 50px auto;">
+        <div style="width: 160px; height: 160px; background: linear-gradient(135deg, #d4af37, #f0d060, #d4af37); 
+             border-radius: 35px; display: inline-flex; align-items: center; justify-content: center; 
+             font-size: 55px; font-weight: 900; color: #0a0e27; margin-bottom: 20px;
+             box-shadow: 0 20px 60px rgba(212, 175, 55, 0.4);">
+            SRMS
         </div>
-
-        <!-- MAIN APP -->
-        <div id="mainApp" class="hidden">
-            <div class="container">
-                <div class="main-container">
-                    <div class="center" style="margin-bottom: 20px;">
-                        <h1 id="schoolHeader">School Resource Management System</h1>
-                        <p id="userInfo"></p>
-                    </div>
-
-                    <div class="school-code-banner">
-                        <div>🏫 School Invite Code</div>
-                        <div class="invite-code" id="dashboardInviteCode">------</div>
-                        <br>
-                        <button class="btn-gold" id="btnCopyCode">📋 Copy Code</button>
-                    </div>
-
-                    <div class="nav-buttons" id="navButtons">
-                        <button onclick="showSection('dashboardSection')" class="active-tab">📊 Dashboard</button>
-                        <button onclick="showSection('bookIssuingSection')">📖 Books</button>
-                        <button onclick="showSection('furnitureSection')">🪑 Furniture</button>
-                        <button onclick="showSection('borrowedSection')">📋 Borrowed</button>
-                        <button onclick="showSection('membersSection')">👥 Members</button>
-                        <button onclick="showSection('teachersSection')">👨‍🏫 Teachers</button>
-                        <button onclick="showSection('chatSection')">💬 Chat</button>
-                        <button onclick="showSection('notesSection')">📝 Notes</button>
-                        <button onclick="showSection('qrSection')">📱 QR</button>
-                        <button onclick="showSection('wallpaperSection')">🖼️ Theme</button>
-                        <button onclick="showSection('settingsSection')">⚙️ Settings</button>
-                        <button class="btn-danger" onclick="logout()" style="margin-left: auto;">🚪 Logout</button>
-                    </div>
-
-                    <!-- DASHBOARD -->
-                    <div id="dashboardSection" class="section">
-                        <h2>📊 Dashboard</h2>
-                        <div class="stats-grid">
-                            <div class="stat-card"><div class="stat-value" id="totalBooks">0</div><div class="stat-label">Total Books</div></div>
-                            <div class="stat-card"><div class="stat-value" id="booksBorrowed">0</div><div class="stat-label">Borrowed</div></div>
-                            <div class="stat-card"><div class="stat-value" id="totalMembers">0</div><div class="stat-label">Members</div></div>
-                            <div class="stat-card"><div class="stat-value" id="totalTeachers">0</div><div class="stat-label">Teachers</div></div>
-                            <div class="stat-card"><div class="stat-value" id="overdueCount">0</div><div class="stat-label">Overdue</div></div>
-                            <div class="stat-card"><div class="stat-value" id="activeLoans">0</div><div class="stat-label">Active Loans</div></div>
-                        </div>
-                    </div>
-
-                    <!-- BOOK ISSUING -->
-                    <div id="bookIssuingSection" class="section hidden">
-                        <h2>📖 Book Management</h2>
-                        <div class="settings-group">
-                            <h3>Add Book</h3>
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 100px;gap:10px;">
-                                <input type="text" id="newBookTitle" placeholder="Book Title">
-                                <select id="newBookType"><option>Textbook</option><option>Novel</option><option>Reference</option></select>
-                                <input type="number" id="newBookQty" value="1" min="1">
-                                <button class="btn-primary" id="addBookBtn">Add</button>
-                            </div>
-                        </div>
-                        <div class="settings-group">
-                            <h3>Issue Book</h3>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <select id="issueBookSelect"></select>
-                                <input type="text" id="issueStudentName" placeholder="Student Name">
-                                <input type="text" id="issueStudentAdm" placeholder="ADM Number">
-                                <input type="date" id="issueDate">
-                                <input type="date" id="issueReturnDate">
-                            </div>
-                            <button class="btn-success" id="issueBookBtn" style="width:100%;margin-top:10px;">📖 Issue Book</button>
-                        </div>
-                        <div class="scrollable-table">
-                            <table id="booksTable">
-                                <thead><tr><th>Title</th><th>Type</th><th>Quantity</th><th>Action</th></tr></thead>
-                                <tbody id="booksTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- FURNITURE -->
-                    <div id="furnitureSection" class="section hidden">
-                        <h2>🪑 Furniture Allocation</h2>
-                        <div class="settings-group">
-                            <h3>Assign Furniture</h3>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <input type="text" id="furnitureStudent" placeholder="Student Name">
-                                <input type="text" id="furnitureAdm" placeholder="ADM Number">
-                                <input type="text" id="furnitureChair" placeholder="Chair Number">
-                                <input type="text" id="furnitureLocker" placeholder="Locker Number">
-                                <input type="date" id="furnitureDate">
-                            </div>
-                            <button class="btn-success" id="assignFurnitureBtn" style="width:100%;margin-top:10px;">✅ Assign</button>
-                        </div>
-                        <div class="scrollable-table">
-                            <table id="furnitureTable">
-                                <thead><tr><th>Student</th><th>ADM</th><th>Chair</th><th>Locker</th><th>Date</th><th>Action</th></tr></thead>
-                                <tbody id="furnitureTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- BORROWED -->
-                    <div id="borrowedSection" class="section hidden">
-                        <h2>📋 Borrowed Items</h2>
-                        <div style="margin-bottom:10px;">
-                            <span class="filter-badge active" onclick="filterBorrowed('all')">All</span>
-                            <span class="filter-badge" onclick="filterBorrowed('active')">Active</span>
-                            <span class="filter-badge" onclick="filterBorrowed('overdue')">Overdue</span>
-                        </div>
-                        <div class="scrollable-table">
-                            <table>
-                                <thead><tr><th>Student</th><th>ADM</th><th>Book</th><th>Borrowed</th><th>Due</th><th>Status</th><th>Action</th></tr></thead>
-                                <tbody id="borrowedTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- MEMBERS -->
-                    <div id="membersSection" class="section hidden">
-                        <h2>👥 Members</h2>
-                        <div class="settings-group">
-                            <div style="display:flex;gap:10px;">
-                                <input type="text" id="memberName" placeholder="Name" style="flex:1;">
-                                <input type="text" id="memberId" placeholder="ID" style="flex:1;">
-                                <button class="btn-primary" id="addMemberBtn">➕ Add</button>
-                            </div>
-                        </div>
-                        <ul id="memberList" style="list-style:none;padding:0;"></ul>
-                    </div>
-
-                    <!-- TEACHERS -->
-                    <div id="teachersSection" class="section hidden">
-                        <h2>👨‍🏫 Teachers</h2>
-                        <div class="settings-group">
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-                                <input type="text" id="teacherName" placeholder="Name">
-                                <input type="text" id="teacherSubject" placeholder="Subjects">
-                                <input type="text" id="teacherDuty" placeholder="Class">
-                            </div>
-                            <button class="btn-primary" id="addTeacherBtn" style="width:100%;margin-top:10px;">➕ Add Teacher</button>
-                        </div>
-                        <div class="scrollable-table">
-                            <table>
-                                <thead><tr><th>Name</th><th>Subjects</th><th>Class</th><th>Action</th></tr></thead>
-                                <tbody id="teacherTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- CHAT -->
-                    <div id="chatSection" class="section hidden">
-                        <h2>💬 Staff Chat</h2>
-                        <div class="chat-container">
-                            <div class="chat-sidebar">
-                                <div class="chat-sidebar-header">👥 Staff</div>
-                                <div class="chat-users" id="chatUsersList"></div>
-                            </div>
-                            <div class="chat-main" style="position:relative;">
-                                <div class="chat-header" id="chatActiveUser">Select a user</div>
-                                <div class="chat-messages" id="chatMessages"></div>
-                                <div id="emojiPicker" class="emoji-picker hidden"></div>
-                                <div class="chat-input-area">
-                                    <button class="btn-secondary" id="emojiBtn" style="font-size:1.5em;">😊</button>
-                                    <button class="btn-secondary" id="attachBtn" style="font-size:1.2em;">📎</button>
-                                    <input type="file" id="fileInput" style="display:none;" multiple>
-                                    <input type="text" id="chatInput" placeholder="Type a message...">
-                                    <button class="btn-primary" onclick="sendChatMessage()">📤</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- NOTES (Word Processor) -->
-                    <div id="notesSection" class="section hidden">
-                        <h2>📝 Private Notes</h2>
-                        <div class="word-processor">
-                            <div class="word-toolbar">
-                                <button onclick="formatDoc('bold')"><b>B</b></button>
-                                <button onclick="formatDoc('italic')"><i>I</i></button>
-                                <button onclick="formatDoc('underline')"><u>U</u></button>
-                                <select onchange="formatDoc('fontSize', this.value)">
-                                    <option value="1">Small</option>
-                                    <option value="3" selected>Normal</option>
-                                    <option value="5">Large</option>
-                                    <option value="7">Huge</option>
-                                </select>
-                                <select onchange="formatDoc('foreColor', this.value)">
-                                    <option value="#000000">Black</option>
-                                    <option value="#e94560">Red</option>
-                                    <option value="#0f3460">Blue</option>
-                                    <option value="#28a745">Green</option>
-                                </select>
-                                <button onclick="formatDoc('justifyLeft')">⬅️</button>
-                                <button onclick="formatDoc('justifyCenter')">⬆️</button>
-                                <button onclick="formatDoc('justifyRight')">➡️</button>
-                                <button onclick="formatDoc('insertUnorderedList')">📋</button>
-                                <button onclick="formatDoc('insertOrderedList')">🔢</button>
-                                <input type="file" id="notesFileInput" style="display:none;" multiple>
-                                <button onclick="document.getElementById('notesFileInput').click()">📎 Attach</button>
-                                <button class="btn-primary" onclick="saveNotes()" style="margin-left:auto;">💾 Save</button>
-                            </div>
-                            <div class="word-content" id="wordContent" contenteditable="true">
-                                Start typing your private notes here...
-                            </div>
-                            <div id="notesAttachments" style="margin-top:10px;"></div>
-                        </div>
-                    </div>
-
-                    <!-- QR -->
-                    <div id="qrSection" class="section hidden">
-                        <h2>📱 QR Codes</h2>
-                        <div class="settings-group">
-                            <h3>Generate</h3>
-                            <div style="display:flex;gap:10px;">
-                                <select id="qrType"><option value="book">Book</option><option value="chair">Chair</option><option value="locker">Locker</option></select>
-                                <input type="number" id="qrStart" value="1" style="width:80px;">
-                                <input type="number" id="qrEnd" value="10" style="width:80px;">
-                                <button class="btn-primary" onclick="generateQR()">Generate</button>
-                            </div>
-                            <div id="qrContainer" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:15px;"></div>
-                        </div>
-                        <div class="settings-group">
-                            <h3>Scan</h3>
-                            <button class="btn-primary" id="scanBtn">📷 Start Scanner</button>
-                            <div id="qrScanner" style="max-width:400px;margin-top:15px;"></div>
-                            <p id="scanResult" style="margin-top:10px;font-weight:bold;"></p>
-                        </div>
-                    </div>
-
-                    <!-- WALLPAPER -->
-                    <div id="wallpaperSection" class="section hidden">
-                        <h2>🖼️ Theme & Wallpaper</h2>
-                        <div class="settings-group">
-                            <h3>Choose Wallpaper</h3>
-                            <div class="wallpaper-grid" id="wallpaperGrid"></div>
-                        </div>
-                        <div class="settings-group">
-                            <h3>Upload Custom Wallpaper</h3>
-                            <input type="file" id="wallpaperUpload" accept="image/*">
-                            <button class="btn-secondary" id="applyWallpaperBtn" style="margin-top:10px;">Apply Custom</button>
-                            <button class="btn-primary" id="resetWallpaperBtn" style="margin-top:10px;">Reset Default</button>
-                        </div>
-                    </div>
-
-                    <!-- SETTINGS -->
-                    <div id="settingsSection" class="section hidden">
-                        <h2>⚙️ Settings</h2>
-                        <div class="settings-group">
-                            <h3>Password Recovery</h3>
-                            <p style="color:var(--text-secondary);margin-bottom:10px;">Forgot your password? Enter your email to reset.</p>
-                            <div style="display:flex;gap:10px;">
-                                <input type="email" id="recoveryEmail" placeholder="Your email" style="flex:1;">
-                                <button class="btn-primary" onclick="recoverPassword()">🔑 Reset Password</button>
-                            </div>
-                            <div id="recoveryMessage" style="margin-top:10px;"></div>
-                        </div>
-                        <div class="settings-group">
-                            <h3>Data Management</h3>
-                            <button class="btn-danger" onclick="clearAllData()">⚠️ Clear All Data</button>
-                            <button class="btn-secondary" onclick="exportData()">📥 Backup</button>
-                            <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📤 Restore</button>
-                            <input type="file" id="importFile" style="display:none;" accept=".json">
-                        </div>
-                    </div>
-
-                    <footer>
-                        <p>SRMS - School Resource Management System v7.0 | <span class="wegem-credit">by WeGEM (Edwin)</span> | © 2025</p>
-                    </footer>
-                </div>
-            </div>
-        </div>
+        <h1 style="font-size: 3.5em; background: linear-gradient(180deg, #f0d060, #d4af37, #b8941f); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 10px 0;">
+            SRMS
+        </h1>
+        <p style="font-size: 1.4em; color: #FFFFFF; margin: 10px 0;">School Resource Management System</p>
+        <p style="color: #d4af37; font-size: 1.1em;">by <span style="color: #f0d060; font-weight: 700;">WeGEM</span> (Edwin)</p>
     </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🔑 Staff Login", use_container_width=True, key="btn_login"):
+            st.session_state.action = 'login'
+    with col2:
+        if st.button("📝 Staff Sign Up", use_container_width=True, key="btn_signup"):
+            st.session_state.action = 'signup'
+    with col3:
+        if st.button("🏫 Create School", use_container_width=True, key="btn_create"):
+            st.session_state.action = 'create'
+    
+    if st.session_state.action:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        if st.session_state.action == 'login':
+            login_form()
+        elif st.session_state.action == 'signup':
+            signup_form()
+        elif st.session_state.action == 'create':
+            create_school_form()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    <script>
-        // Supabase
-        const supabase = window.supabase.createClient(
-            'https://mcjkdnhbbnxvvgnjbuzy.supabase.co',
-            'sb_publishable_UxInPN35lw3WlOvPHFqUWw_6rDmZ-sd'
-        );
+def login_form():
+    st.markdown('<h3 style="color:#FFFFFF;">🔐 Staff Login</h3>', unsafe_allow_html=True)
+    with st.form("frm_login"):
+        name = st.text_input("👤 Your Full Name", placeholder="Enter your registered name")
+        school_name = st.text_input("🏢 School Name", placeholder="Enter school name")
+        invite_code = st.text_input("🔑 Invite Code", placeholder="Enter invite code")
+        password = st.text_input("🔒 Password", type="password", placeholder="Enter password")
+        if st.form_submit_button("🔑 Login", use_container_width=True):
+            schools = load_data("schools.json", {})
+            school = schools.get(school_name)
+            if not school:
+                st.error("School not found!")
+                return
+            users = load_data(f"users_{school_name}.json", [])
+            user = next((u for u in users if u['name'].lower() == name.lower() and u['code'] == invite_code.upper()), None)
+            if not user or user['password'] != hash_password(password):
+                st.error("Invalid credentials!")
+                return
+            st.session_state.user = user
+            st.session_state.school = school
+            st.session_state.page = 'dashboard'
+            st.session_state.action = None
+            add_audit_entry('Login', f"{user['name']} logged in as {user['role']}")
+            st.rerun()
 
-        // App State
-        let appState = {
-            orgId: null,
-            orgName: "",
-            adminName: "",
-            adminEmail: "",
-            inviteCode: null,
-            users: [],
-            currentUser: null,
-            currentRole: null,
-            books: [],
-            members: [],
-            borrowed: [],
-            teachers: [],
-            furnitureAllocations: [],
-            chatMessages: [],
-            notesData: { content: '', attachments: [] },
-            auditLog: [],
-            schoolId: null
-        };
-
-        let borrowedFilter = 'all';
-        let chatActiveUser = null;
-        let qrScanner = null;
-
-        // Helper Functions
-        function saveState() {
-            localStorage.setItem('schoolSystemV6', JSON.stringify(appState));
-        }
-
-        function showNotification(msg, type = 'info') {
-            const n = document.createElement('div');
-            n.className = `notification ${type}`;
-            n.textContent = msg;
-            document.body.appendChild(n);
-            setTimeout(() => { n.remove(); }, 3500);
-        }
-
-        function generateInviteCode() {
-            return Math.random().toString(36).substring(2, 10).toUpperCase();
-        }
-
-        // Create particles
-        function createParticles() {
-            const container = document.getElementById('startupParticles');
-            for (let i = 0; i < 30; i++) {
-                const p = document.createElement('div');
-                p.className = 'startup-particle';
-                p.style.cssText = `width:${Math.random()*60+20}px;height:${Math.random()*60+20}px;left:${Math.random()*100}%;animation-delay:${Math.random()*15}s`;
-                container.appendChild(p);
+def signup_form():
+    st.markdown('<h3 style="color:#FFFFFF;">📝 Staff Sign Up</h3>', unsafe_allow_html=True)
+    with st.form("frm_signup"):
+        name = st.text_input("👤 Full Name", placeholder="Your full name")
+        email = st.text_input("📧 Email", placeholder="your@email.com")
+        phone = st.text_input("📞 Phone", placeholder="+1234567890")
+        school_name = st.text_input("🏢 School Name", placeholder="Your school name")
+        invite_code = st.text_input("🔑 Invite Code", placeholder="From your admin")
+        staff_id = st.text_input("👤 Staff ID (Optional)", placeholder="Employee ID")
+        password = st.text_input("🔒 Create Password", type="password", placeholder="Min 6 characters")
+        if st.form_submit_button("📝 Sign Up", use_container_width=True):
+            schools = load_data("schools.json", {})
+            school = schools.get(school_name)
+            if not school:
+                st.error("School not found!")
+                return
+            if school['invite_code'] != invite_code.upper():
+                st.error("Invalid invite code!")
+                return
+            if len(password) < 6:
+                st.error("Password min 6 chars!")
+                return
+            users = load_data(f"users_{school_name}.json", [])
+            if any(u['email'] == email for u in users):
+                st.error("Email already registered!")
+                return
+            new_user = {
+                "name": name, "email": email, "phone": phone, "staff_id": staff_id,
+                "code": invite_code.upper(), "password": hash_password(password),
+                "role": "teacher", "joined": datetime.now().strftime("%Y-%m-%d")
             }
-        }
+            users.append(new_user)
+            save_data(f"users_{school_name}.json", users)
+            st.session_state.user = new_user
+            st.session_state.school = school
+            st.session_state.page = 'dashboard'
+            st.session_state.action = None
+            add_audit_entry('Signup', f"{name} signed up as teacher")
+            st.success("Registration successful!")
+            st.rerun()
 
-        // Show startup form
-        function showStartupForm(type) {
-            const container = document.getElementById('startupFormsContainer');
-            const style = 'background:rgba(255,255,255,0.1);backdrop-filter:blur(20px);border-radius:16px;padding:30px;border:1px solid rgba(255,255,255,0.2);';
-            const is = 'background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;width:100%;padding:12px;border-radius:8px;margin-top:5px;';
-            const ls = 'color:rgba(255,255,255,0.9);font-size:0.9em;font-weight:600;';
-
-            if (type === 'login') {
-                container.innerHTML = `
-                    <div style="${style}">
-                        <h3 style="color:white;">🔐 Staff Login</h3>
-                        <div style="margin:15px 0;"><label style="${ls}">👤 Name:</label><input id="loginName" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🏢 School:</label><input id="loginSchool" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔑 Code:</label><input id="loginCode" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔒 Password:</label><input type="password" id="loginPassword" style="${is}"></div>
-                        <button onclick="handleLogin()" class="startup-btn startup-btn-login" style="width:100%;">🔑 Login</button>
-                        <p style="text-align:center;margin-top:10px;color:rgba(255,255,255,0.6);cursor:pointer;" onclick="showStartupForm('forgot')">Forgot Password?</p>
-                    </div>`;
-            } else if (type === 'signup') {
-                container.innerHTML = `
-                    <div style="${style}">
-                        <h3 style="color:white;">📝 Sign Up</h3>
-                        <div style="margin:15px 0;"><label style="${ls}">👤 Name:</label><input id="signupName" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">📧 Email:</label><input type="email" id="signupEmail" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">📞 Phone:</label><input type="tel" id="signupPhone" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🏢 School:</label><input id="signupSchool" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔑 Code:</label><input id="signupCode" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔒 Password:</label><input type="password" id="signupPassword" style="${is}"></div>
-                        <button onclick="handleSignup()" class="startup-btn startup-btn-signup" style="width:100%;">📝 Sign Up</button>
-                    </div>`;
-            } else if (type === 'create') {
-                container.innerHTML = `
-                    <div style="${style}">
-                        <h3 style="color:white;">🏫 Create School</h3>
-                        <div style="margin:15px 0;"><label style="${ls}">🏢 School Name:</label><input id="createSchool" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">📍 Address:</label><input id="createAddress" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">👤 Admin Name:</label><input id="createAdmin" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">📧 Admin Email:</label><input type="email" id="createEmail" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">📞 Phone:</label><input type="tel" id="createPhone" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔒 Password:</label><input type="password" id="createPassword" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔒 Confirm:</label><input type="password" id="createPassword2" style="${is}"></div>
-                        <button onclick="handleCreate()" class="startup-btn startup-btn-create" style="width:100%;">🚀 Create</button>
-                    </div>`;
-            } else if (type === 'forgot') {
-                container.innerHTML = `
-                    <div style="${style}">
-                        <h3 style="color:white;">🔑 Forgot Password</h3>
-                        <p style="color:rgba(255,255,255,0.7);margin-bottom:15px;">Enter your email to reset password</p>
-                        <div style="margin:15px 0;"><label style="${ls}">📧 Email:</label><input type="email" id="forgotEmail" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🏢 School:</label><input id="forgotSchool" style="${is}"></div>
-                        <div style="margin:15px 0;"><label style="${ls}">🔑 Code:</label><input id="forgotCode" style="${is}"></div>
-                        <button onclick="handleForgotPassword()" class="startup-btn startup-btn-login" style="width:100%;">🔑 Reset</button>
-                        <p id="forgotMessage" style="text-align:center;margin-top:10px;color:var(--gold-light);"></p>
-                    </div>`;
+def create_school_form():
+    st.markdown('<h3 style="color:#FFFFFF;">🏫 Create New School</h3>', unsafe_allow_html=True)
+    with st.form("frm_create"):
+        school_name = st.text_input("🏢 School Name", placeholder="e.g., Sunshine High School")
+        address = st.text_input("📍 School Address", placeholder="School location")
+        admin_name = st.text_input("👤 Admin Full Name", placeholder="Your full name")
+        admin_email = st.text_input("📧 Admin Email", placeholder="admin@school.edu")
+        admin_phone = st.text_input("📞 Admin Phone", placeholder="+1234567890")
+        password = st.text_input("🔒 Password", type="password", placeholder="Min 8 characters")
+        confirm = st.text_input("🔒 Confirm Password", type="password", placeholder="Re-enter password")
+        if st.form_submit_button("🚀 Create School", use_container_width=True):
+            if password != confirm:
+                st.error("Passwords don't match!")
+                return
+            if len(password) < 8:
+                st.error("Password min 8 chars!")
+                return
+            schools = load_data("schools.json", {})
+            if school_name in schools:
+                st.error("School already exists!")
+                return
+            invite_code = generate_code()
+            school = {
+                "name": school_name, "address": address, "admin_name": admin_name,
+                "admin_email": admin_email, "admin_phone": admin_phone,
+                "invite_code": invite_code, "created": datetime.now().strftime("%Y-%m-%d")
             }
-            container.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        // Handle Forgot Password
-        function handleForgotPassword() {
-            const email = document.getElementById('forgotEmail')?.value.trim();
-            const org = document.getElementById('forgotSchool')?.value.trim();
-            const code = document.getElementById('forgotCode')?.value.trim().toUpperCase();
-            const msg = document.getElementById('forgotMessage');
-
-            if (!email || !org || !code) {
-                if (msg) msg.textContent = 'Please fill all fields';
-                return;
+            schools[school_name] = school
+            save_data("schools.json", schools)
+            admin_user = {
+                "name": admin_name, "email": admin_email, "phone": admin_phone,
+                "staff_id": "ADMIN-001", "code": invite_code,
+                "password": hash_password(password), "role": "admin",
+                "joined": datetime.now().strftime("%Y-%m-%d")
             }
-
-            if (appState.orgName !== org || appState.inviteCode !== code) {
-                if (msg) msg.textContent = 'School or code not found';
-                return;
-            }
-
-            const user = appState.users.find(u => u.email === email);
-            if (!user) {
-                if (msg) msg.textContent = 'Email not found';
-                return;
-            }
-
-            // In a real app, send email. For now, show password hint
-            const newPassword = Math.random().toString(36).substring(2, 10);
-            user.password = newPassword;
-            saveState();
-            if (msg) msg.textContent = `✅ New password: ${newPassword} (Please change after login)`;
-        }
-
-        // Handle Login
-        function handleLogin() {
-            const name = document.getElementById('loginName')?.value.trim();
-            const org = document.getElementById('loginSchool')?.value.trim();
-            const code = document.getElementById('loginCode')?.value.trim().toUpperCase();
-            const pw = document.getElementById('loginPassword')?.value;
-
-            if (!name || !org || !code || !pw) {
-                showNotification("Fill all fields", "error");
-                return;
-            }
-
-            if (appState.orgName !== org) {
-                showNotification("School not found", "error");
-                return;
-            }
-
-            const user = appState.users.find(u => u.code === code && u.name.toLowerCase() === name.toLowerCase());
-            if (!user || user.password !== pw) {
-                showNotification("Invalid credentials", "error");
-                return;
-            }
-
-            appState.currentUser = { name: user.name, role: user.role, email: user.email, staffId: user.staffId };
-            appState.currentRole = user.role;
-            saveState();
-            showNotification("Welcome back!", "success");
-            launchApp();
-        }
-
-        // Handle Signup
-        function handleSignup() {
-            const name = document.getElementById('signupName')?.value.trim();
-            const email = document.getElementById('signupEmail')?.value.trim();
-            const phone = document.getElementById('signupPhone')?.value.trim();
-            const org = document.getElementById('signupSchool')?.value.trim();
-            const code = document.getElementById('signupCode')?.value.trim().toUpperCase();
-            const pw = document.getElementById('signupPassword')?.value;
-
-            if (!name || !email || !org || !code || !pw) {
-                showNotification("Fill required fields", "error");
-                return;
-            }
-
-            if (pw.length < 6) {
-                showNotification("Password min 6 chars", "error");
-                return;
-            }
-
-            if (appState.orgName !== org || appState.inviteCode !== code) {
-                showNotification("Invalid school or code", "error");
-                return;
-            }
-
-            if (appState.users.find(u => u.email === email)) {
-                showNotification("Email already registered", "error");
-                return;
-            }
-
-            const newUser = { code, name, email, phone, role: 'teacher', password: pw, staffId: `TCH-${Date.now().toString(36).toUpperCase()}` };
-            appState.users.push(newUser);
-            appState.currentUser = { name, role: 'teacher', email, phone, staffId: newUser.staffId };
-            appState.currentRole = 'teacher';
-            saveState();
-            showNotification("Signed up!", "success");
-            launchApp();
-        }
-
-        // Handle Create School
-        function handleCreate() {
-            const org = document.getElementById('createSchool')?.value.trim();
-            const address = document.getElementById('createAddress')?.value.trim();
-            const admin = document.getElementById('createAdmin')?.value.trim();
-            const email = document.getElementById('createEmail')?.value.trim();
-            const phone = document.getElementById('createPhone')?.value.trim();
-            const pw = document.getElementById('createPassword')?.value;
-            const pw2 = document.getElementById('createPassword2')?.value;
-
-            if (!org || !admin || !email || !pw) {
-                showNotification("Fill required fields", "error");
-                return;
-            }
-
-            if (pw !== pw2) {
-                showNotification("Passwords don't match", "error");
-                return;
-            }
-
-            const code = generateInviteCode();
-            appState.orgId = Date.now().toString();
-            appState.orgName = org;
-            appState.adminName = admin;
-            appState.adminEmail = email;
-            appState.inviteCode = code;
-            appState.schoolAddress = address;
-            appState.users = [{ code, name: admin, email, phone, role: 'admin', password: pw, staffId: 'ADMIN-001' }];
-            appState.currentUser = { name: admin, role: 'admin', email, phone, staffId: 'ADMIN-001' };
-            appState.currentRole = 'admin';
-            saveState();
-            showNotification(`School created! Code: ${code}`, "success");
-            launchApp();
-        }
-
-        // Launch app
-        function launchApp() {
-            document.getElementById('startupPage').classList.add('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-            document.getElementById('schoolHeader').textContent = appState.orgName;
-            document.getElementById('userInfo').innerHTML = `👤 ${appState.currentUser.name} <span class="role-badge role-${appState.currentRole}">${appState.currentRole}</span>`;
-            document.getElementById('dashboardInviteCode').textContent = appState.inviteCode || '------';
-            updateDashboard();
-            renderAll();
-        }
-
-        // Update Dashboard
-        function updateDashboard() {
-            const tb = appState.books.reduce((s, b) => s + b.quantity, 0);
-            const bb = appState.borrowed.filter(b => !b.returned).length;
-            document.getElementById('totalBooks').textContent = tb;
-            document.getElementById('booksBorrowed').textContent = bb;
-            document.getElementById('totalMembers').textContent = appState.members.length;
-            document.getElementById('totalTeachers').textContent = appState.teachers.length;
-            document.getElementById('overdueCount').textContent = appState.borrowed.filter(b => !b.returned && new Date(b.returnDate) < new Date()).length;
-            document.getElementById('activeLoans').textContent = bb;
-        }
-
-        // Show Section
-        function showSection(id) {
-            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-            const section = document.getElementById(id);
-            if (section) section.classList.remove('hidden');
-
-            if (id === 'chatSection') renderChatUsers();
-            if (id === 'wallpaperSection') renderWallpapers();
-            if (id === 'notesSection') loadNotes();
-            if (id === 'qrSection') setupQRScanner();
-        }
-
-        // Render Books
-        function renderBooks() {
-            const tbody = document.getElementById('booksTableBody');
-            const select = document.getElementById('issueBookSelect');
-            if (tbody) tbody.innerHTML = appState.books.map((b, i) => `<tr><td>${b.title}</td><td>${b.type}</td><td>${b.quantity}</td><td><button class="btn-danger" onclick="deleteBook(${i})">🗑️</button></td></tr>`).join('');
-            if (select) select.innerHTML = '<option value="">-- Select --</option>' + appState.books.filter(b => b.quantity > 0).map(b => `<option>${b.title}</option>`).join('');
-        }
-
-        function deleteBook(i) { appState.books.splice(i, 1); saveState(); renderBooks(); updateDashboard(); }
-
-        // Issue Book
-        document.getElementById('issueBookBtn')?.addEventListener('click', () => {
-            const title = document.getElementById('issueBookSelect').value;
-            const name = document.getElementById('issueStudentName').value.trim();
-            const adm = document.getElementById('issueStudentAdm').value.trim();
-            const bDate = document.getElementById('issueDate').value;
-            const rDate = document.getElementById('issueReturnDate').value;
-
-            if (!title || !name || !adm || !bDate || !rDate) {
-                showNotification("Fill all fields", "error");
-                return;
-            }
-
-            const book = appState.books.find(b => b.title === title);
-            if (!book || book.quantity <= 0) {
-                showNotification("Out of stock", "error");
-                return;
-            }
-
-            book.quantity--;
-            appState.borrowed.push({
-                id: Date.now(),
-                name,
-                adm,
-                bookTitle: title,
-                borrowDate: bDate,
-                returnDate: rDate,
-                returned: false
-            });
-            saveState();
-            renderBooks();
-            renderBorrowed();
-            updateDashboard();
-            showNotification("Book issued!", "success");
-        });
-
-        // Render Borrowed
-        function renderBorrowed() {
-            const tbody = document.getElementById('borrowedTableBody');
-            if (!tbody) return;
-            let data = appState.borrowed;
-            if (borrowedFilter === 'active') data = data.filter(b => !b.returned);
-            if (borrowedFilter === 'overdue') data = data.filter(b => !b.returned && new Date(b.returnDate) < new Date());
-            tbody.innerHTML = data.map(b => {
-                const isOv = !b.returned && new Date(b.returnDate) < new Date();
-                return `<tr><td>${b.name}</td><td>${b.adm}</td><td>${b.bookTitle}</td><td>${b.borrowDate}</td><td class="${isOv?'overdue':''}">${b.returnDate}</td><td>${b.returned?'Returned':(isOv?'🔴 OVERDUE':'Active')}</td><td>${!b.returned?`<button class="btn-success" onclick="returnBook('${b.id}')">Return</button>`:'-'}</td></tr>`;
-            }).join('');
-        }
-
-        function filterBorrowed(f) {
-            borrowedFilter = f;
-            document.querySelectorAll('#borrowedSection .filter-badge').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            renderBorrowed();
-        }
-
-        function returnBook(id) {
-            const rec = appState.borrowed.find(b => b.id == id);
-            if (rec) {
-                rec.returned = true;
-                const book = appState.books.find(b => b.title === rec.bookTitle);
-                if (book) book.quantity++;
-                saveState();
-                renderBorrowed();
-                renderBooks();
-                updateDashboard();
-                showNotification("Book returned!", "success");
-            }
-        }
-
-        // Furniture
-        document.getElementById('assignFurnitureBtn')?.addEventListener('click', () => {
-            const name = document.getElementById('furnitureStudent').value.trim();
-            const adm = document.getElementById('furnitureAdm').value.trim();
-            const chair = document.getElementById('furnitureChair').value.trim();
-            const locker = document.getElementById('furnitureLocker').value.trim();
-            const date = document.getElementById('furnitureDate').value;
-
-            if (!name || !adm || !date) {
-                showNotification("Fill required fields", "error");
-                return;
-            }
-
-            appState.furnitureAllocations.push({
-                id: Date.now(),
-                name,
-                adm,
-                chair,
-                locker,
-                date,
-                returned: false
-            });
-            saveState();
-            renderFurniture();
-            showNotification("Furniture assigned!", "success");
-        });
-
-        function renderFurniture() {
-            const tbody = document.getElementById('furnitureTableBody');
-            if (tbody) tbody.innerHTML = appState.furnitureAllocations.map(f =>
-                `<tr><td>${f.name}</td><td>${f.adm}</td><td>${f.chair||'-'}</td><td>${f.locker||'-'}</td><td>${f.date}</td><td>${!f.returned?`<button class="btn-success" onclick="returnFurniture('${f.id}')">Return</button>`:'Returned'}</td></tr>`
-            ).join('');
-        }
-
-        function returnFurniture(id) {
-            const item = appState.furnitureAllocations.find(f => f.id == id);
-            if (item) { item.returned = true; saveState(); renderFurniture(); showNotification("Returned!", "success"); }
-        }
-
-        // Members
-        document.getElementById('addMemberBtn')?.addEventListener('click', () => {
-            const name = document.getElementById('memberName').value.trim();
-            const id = document.getElementById('memberId').value.trim();
-            if (name) {
-                appState.members.push({ name, id: id || `MEM-${Date.now()}` });
-                saveState();
-                renderMembers();
-                updateDashboard();
-                document.getElementById('memberName').value = '';
-                document.getElementById('memberId').value = '';
-                showNotification("Member added!", "success");
-            }
-        });
-
-        function renderMembers() {
-            const list = document.getElementById('memberList');
-            if (list) list.innerHTML = appState.members.map((m, i) =>
-                `<li style="padding:10px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;"><span><strong>${m.name}</strong> (${m.id})</span><button class="btn-danger" onclick="deleteMember(${i})" style="padding:5px 10px;">🗑️</button></li>`
-            ).join('');
-        }
-
-        function deleteMember(i) { appState.members.splice(i, 1); saveState(); renderMembers(); updateDashboard(); }
-
-        // Teachers
-        document.getElementById('addTeacherBtn')?.addEventListener('click', () => {
-            const name = document.getElementById('teacherName').value.trim();
-            const subject = document.getElementById('teacherSubject').value.trim();
-            const duty = document.getElementById('teacherDuty').value.trim();
-            if (name) {
-                appState.teachers.push({ name, subject, duty });
-                saveState();
-                renderTeachers();
-                updateDashboard();
-                ['teacherName','teacherSubject','teacherDuty'].forEach(id => document.getElementById(id).value = '');
-                showNotification("Teacher added!", "success");
-            }
-        });
-
-        function renderTeachers() {
-            const tbody = document.getElementById('teacherTableBody');
-            if (tbody) tbody.innerHTML = appState.teachers.map((t, i) =>
-                `<tr><td>${t.name}</td><td>${t.subject||'-'}</td><td>${t.duty||'-'}</td><td><button class="btn-danger" onclick="deleteTeacher(${i})">🗑️</button></td></tr>`
-            ).join('');
-        }
-
-        function deleteTeacher(i) { appState.teachers.splice(i, 1); saveState(); renderTeachers(); updateDashboard(); }
-
-        // Chat System
-        function renderChatUsers() {
-            const list = document.getElementById('chatUsersList');
-            if (!list) return;
-            const others = appState.users.filter(u => u.name !== appState.currentUser?.name);
-            list.innerHTML = others.map(u =>
-                `<div class="chat-user ${chatActiveUser===u.name?'active':''}" onclick="selectChatUser('${u.name}')">
-                    <div class="chat-user-avatar">${u.name[0]}</div>
-                    <div>${u.name}<br><small style="color:var(--text-muted);">${u.role}</small></div>
-                </div>`
-            ).join('') || '<p style="padding:20px;color:var(--text-muted);">No other staff</p>';
-        }
-
-        function selectChatUser(name) {
-            chatActiveUser = name;
-            document.getElementById('chatActiveUser').textContent = `💬 ${name}`;
-            renderChatMessages();
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('chatInput');
-            const msg = input.value.trim();
-            if (!msg || !chatActiveUser) return;
-            appState.chatMessages.push({
-                id: Date.now(),
-                from: appState.currentUser.name,
-                to: chatActiveUser,
-                message: msg,
-                timestamp: new Date().toISOString(),
-                read: false
-            });
-            saveState();
-            input.value = '';
-            renderChatMessages();
-        }
-
-        function renderChatMessages() {
-            const container = document.getElementById('chatMessages');
-            if (!container) return;
-            if (!chatActiveUser) {
-                container.innerHTML = '<p style="text-align:center;padding:40px;color:var(--text-muted);">Select a user</p>';
-                return;
-            }
-            const msgs = appState.chatMessages.filter(m =>
-                (m.from === appState.currentUser.name && m.to === chatActiveUser) ||
-                (m.from === chatActiveUser && m.to === appState.currentUser.name)
-            ).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            container.innerHTML = msgs.map(m => {
-                const isMine = m.from === appState.currentUser.name;
-                return `<div class="chat-message ${isMine?'mine':''}">
-                    <div class="chat-message-avatar" style="width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.8em;">${m.from[0]}</div>
-                    <div class="chat-message-content">${m.message}<div class="chat-message-time">${new Date(m.timestamp).toLocaleTimeString()}</div></div>
-                </div>`;
-            }).join('');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        // Emoji Picker
-        const emojis = ['😀','😂','😍','🥰','😎','🤩','😢','😡','👍','👎','❤️','🔥','⭐','🎉','💡','📚','✏️','💻','✅','❌'];
-
-        document.getElementById('emojiBtn')?.addEventListener('click', () => {
-            const picker = document.getElementById('emojiPicker');
-            picker.classList.toggle('hidden');
-            if (!picker.classList.contains('hidden')) {
-                picker.innerHTML = emojis.map(e => `<button class="emoji-btn" onclick="insertEmoji('${e}')">${e}</button>`).join('');
-            }
-        });
-
-        function insertEmoji(emoji) {
-            const input = document.getElementById('chatInput');
-            input.value += emoji;
-            document.getElementById('emojiPicker').classList.add('hidden');
-        }
-
-        // File Attachment in Chat
-        document.getElementById('attachBtn')?.addEventListener('click', () => document.getElementById('fileInput').click());
-        document.getElementById('fileInput')?.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    appState.chatMessages.push({
-                        id: Date.now(),
-                        from: appState.currentUser.name,
-                        to: chatActiveUser,
-                        message: `📎 [File: ${file.name}]`,
-                        attachment: ev.target.result,
-                        timestamp: new Date().toISOString()
-                    });
-                    saveState();
-                    renderChatMessages();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Notes (Word Processor)
-        function loadNotes() {
-            const content = document.getElementById('wordContent');
-            const attachments = document.getElementById('notesAttachments');
-            if (content && appState.notesData.content) {
-                content.innerHTML = appState.notesData.content;
-            }
-            if (attachments) {
-                attachments.innerHTML = (appState.notesData.attachments || []).map((a, i) =>
-                    `<span class="attachment-preview" onclick="window.open('${a.data}')">📎 ${a.name}</span>`
-                ).join('');
-            }
-        }
-
-        function saveNotes() {
-            const content = document.getElementById('wordContent');
-            appState.notesData.content = content.innerHTML;
-            saveState();
-            showNotification("Notes saved!", "success");
-        }
-
-        function formatDoc(command, value = null) {
-            document.execCommand(command, false, value);
-            document.getElementById('wordContent').focus();
-        }
-
-        document.getElementById('notesFileInput')?.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    if (!appState.notesData.attachments) appState.notesData.attachments = [];
-                    appState.notesData.attachments.push({ name: file.name, data: ev.target.result });
-                    saveState();
-                    loadNotes();
-                    showNotification("File attached!", "success");
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // QR Scanner
-        function setupQRScanner() {
-            document.getElementById('scanBtn').addEventListener('click', function() {
-                if (qrScanner) {
-                    qrScanner.stop().then(() => { qrScanner = null; this.textContent = '📷 Start Scanner'; });
-                    return;
-                }
-                document.getElementById('qrScanner').innerHTML = '<div id="qr-reader"></div>';
-                qrScanner = new Html5Qrcode("qr-reader");
-                qrScanner.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: 250 },
-                    (decoded) => {
-                        document.getElementById('scanResult').textContent = `✅ Scanned: ${decoded}`;
-                        qrScanner.stop();
-                        qrScanner = null;
-                    },
-                    () => {}
-                ).catch(err => showNotification("Camera error: " + err, "error"));
-                this.textContent = '🛑 Stop';
-            });
-        }
-
-        function generateQR() {
-            const type = document.getElementById('qrType').value;
-            const start = parseInt(document.getElementById('qrStart').value);
-            const end = parseInt(document.getElementById('qrEnd').value);
-            const container = document.getElementById('qrContainer');
-            container.innerHTML = '';
-            for (let i = start; i <= end; i++) {
-                const div = document.createElement('div');
-                div.innerHTML = `<strong>${type}:${i}</strong><div id="qr-${i}"></div>`;
-                container.appendChild(div);
-                new QRCode(document.getElementById(`qr-${i}`), { text: `${type}-${i}`, width: 100, height: 100 });
-            }
-        }
-
-        // Wallpapers
-        const wallpapers = [
-            { name: 'Library', url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400' },
-            { name: 'Classroom', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=400' },
-            { name: 'Study', url: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400' },
-            { name: 'Sunset', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=400' },
-            { name: 'Ocean', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400' },
-            { name: 'Forest', url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400' },
-            { name: 'Mountain', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400' },
-            { name: 'Night Sky', url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400' },
-            { name: 'Abstract', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400' },
-            { name: 'Technology', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400' },
-            { name: 'Space', url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400' },
-            { name: 'Nature', url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400' }
-        ];
-
-        function renderWallpapers() {
-            const grid = document.getElementById('wallpaperGrid');
-            if (!grid) return;
-            grid.innerHTML = wallpapers.map(wp =>
-                `<div class="wallpaper-option" onclick="setWallpaper('${wp.url}')">
-                    <img src="${wp.url}" alt="${wp.name}">
-                    <div class="wallpaper-label">${wp.name}</div>
-                </div>`
-            ).join('');
-        }
-
-        function setWallpaper(url) {
-            document.body.style.backgroundImage = `url('${url}')`;
-            localStorage.setItem('wallpaper', url);
-            showNotification("Wallpaper set!", "success");
-        }
-
-        document.getElementById('applyWallpaperBtn')?.addEventListener('click', () => {
-            const file = document.getElementById('wallpaperUpload').files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => setWallpaper(e.target.result);
-                reader.readAsDataURL(file);
-            }
-        });
-
-        document.getElementById('resetWallpaperBtn')?.addEventListener('click', () => {
-            document.body.style.backgroundImage = '';
-            localStorage.removeItem('wallpaper');
-            showNotification("Reset!", "success");
-        });
-
-        // Password Recovery in Settings
-        function recoverPassword() {
-            const email = document.getElementById('recoveryEmail').value.trim();
-            const msg = document.getElementById('recoveryMessage');
-            if (!email) {
-                msg.innerHTML = '<span style="color:#ff6b6b;">Enter email</span>';
-                return;
-            }
-            const user = appState.users.find(u => u.email === email);
-            if (!user) {
-                msg.innerHTML = '<span style="color:#ff6b6b;">Email not found</span>';
-                return;
-            }
-            const newPw = Math.random().toString(36).substring(2, 10);
-            user.password = newPw;
-            saveState();
-            msg.innerHTML = `<span style="color:#28a745;">✅ New password: <strong>${newPw}</strong></span>`;
-        }
-
-        // Data Management
-        function clearAllData() {
-            if (confirm("DELETE ALL DATA?") && prompt("Type DELETE:") === 'DELETE') {
-                localStorage.clear();
-                location.reload();
-            }
-        }
-
-        function exportData() {
-            const blob = new Blob([JSON.stringify(appState)], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `srms_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-        }
-
-        document.getElementById('importFile')?.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    try {
-                        const data = JSON.parse(ev.target.result);
-                        Object.assign(appState, data);
-                        saveState();
-                        showNotification("Data restored!", "success");
-                        location.reload();
-                    } catch {
-                        showNotification("Invalid file", "error");
-                    }
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        // Add Book
-        document.getElementById('addBookBtn')?.addEventListener('click', () => {
-            const title = document.getElementById('newBookTitle').value.trim();
-            const type = document.getElementById('newBookType').value;
-            const qty = parseInt(document.getElementById('newBookQty').value);
-            if (title && qty > 0) {
-                const existing = appState.books.find(b => b.title === title);
-                if (existing) { existing.quantity += qty; }
-                else { appState.books.push({ title, type, quantity: qty }); }
-                saveState();
-                renderBooks();
-                updateDashboard();
-                document.getElementById('newBookTitle').value = '';
-                showNotification("Book added!", "success");
-            }
-        });
-
-        // Logout
-        function logout() {
-            appState.currentUser = null;
-            appState.currentRole = null;
-            saveState();
-            location.reload();
-        }
-
-        // Copy code
-        function copyDashboardCode() {
-            navigator.clipboard.writeText(appState.inviteCode);
-            showNotification("Copied!", "success");
-        }
-
-        // Render All
-        function renderAll() {
-            renderBooks();
-            renderBorrowed();
-            renderMembers();
-            renderTeachers();
-            renderFurniture();
-            renderWallpapers();
-            updateDashboard();
-        }
-
-        // Initialize
-        function initApp() {
-            createParticles();
-
-            // Load saved state
-            const saved = localStorage.getItem('schoolSystemV6');
-            if (saved) {
-                try { Object.assign(appState, JSON.parse(saved)); } catch (e) {}
-            }
-
-            // Default data
-            if (!appState.books.length) appState.books = [
-                { title: "Mathematics Form 1", type: "Textbook", quantity: 50 },
-                { title: "English Novel", type: "Novel", quantity: 30 },
-                { title: "Science Textbook", type: "Textbook", quantity: 40 }
-            ];
-            if (!appState.members.length) appState.members = [
-                { name: "John Doe", id: "MEM-001" },
-                { name: "Jane Smith", id: "MEM-002" }
-            ];
-            if (!appState.teachers.length) appState.teachers = [
-                { name: "Mr. Johnson", subject: "Mathematics", duty: "Form 1" },
-                { name: "Ms. Williams", subject: "English", duty: "Form 2" }
-            ];
-
-            saveState();
-
-            // Check login
-            if (appState.currentUser) {
-                document.getElementById('startupPage').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                document.getElementById('schoolHeader').textContent = appState.orgName;
-                document.getElementById('userInfo').innerHTML = `👤 ${appState.currentUser.name} <span class="role-badge role-${appState.currentRole}">${appState.currentRole}</span>`;
-                document.getElementById('dashboardInviteCode').textContent = appState.inviteCode || '------';
-                renderAll();
-            }
-
-            // Set dates
-            const today = new Date().toISOString().split('T')[0];
-            const returnDate = new Date();
-            returnDate.setDate(returnDate.getDate() + 14);
-            document.getElementById('issueDate').value = today;
-            document.getElementById('issueReturnDate').value = returnDate.toISOString().split('T')[0];
-            document.getElementById('furnitureDate').value = today;
-
-            // Button listeners
-            document.getElementById('btnLogin').addEventListener('click', () => showStartupForm('login'));
-            document.getElementById('btnSignup').addEventListener('click', () => showStartupForm('signup'));
-            document.getElementById('btnCreate').addEventListener('click', () => showStartupForm('create'));
-            document.getElementById('btnCopyCode').addEventListener('click', copyDashboardCode);
-
-            // Load wallpaper
-            const savedWallpaper = localStorage.getItem('wallpaper');
-            if (savedWallpaper) {
-                document.body.style.backgroundImage = `url('${savedWallpaper}')`;
-            }
-
-            console.log('🏫 SRMS v7.0 by WeGEM | Ready');
-        }
-
-        // Expose functions
-        window.showStartupForm = showStartupForm;
-        window.handleLogin = handleLogin;
-        window.handleSignup = handleSignup;
-        window.handleCreate = handleCreate;
-        window.handleForgotPassword = handleForgotPassword;
-        window.showSection = showSection;
-        window.deleteBook = deleteBook;
-        window.returnBook = returnBook;
-        window.filterBorrowed = filterBorrowed;
-        window.returnFurniture = returnFurniture;
-        window.deleteMember = deleteMember;
-        window.deleteTeacher = deleteTeacher;
-        window.selectChatUser = selectChatUser;
-        window.sendChatMessage = sendChatMessage;
-        window.insertEmoji = insertEmoji;
-        window.setWallpaper = setWallpaper;
-        window.generateQR = generateQR;
-        window.formatDoc = formatDoc;
-        window.saveNotes = saveNotes;
-        window.recoverPassword = recoverPassword;
-        window.copyDashboardCode = copyDashboardCode;
-        window.logout = logout;
-        window.clearAllData = clearAllData;
-        window.exportData = exportData;
-
-        initApp();
-    </script>
-</body>
-</html>
+            save_data(f"users_{school_name}.json", [admin_user])
+            for file in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages", "forum_messages", "notepad", "attachments"]:
+                save_data(f"{file}_{school_name}.json", [])
+            st.session_state.user = admin_user
+            st.session_state.school = school
+            st.session_state.page = 'dashboard'
+            st.session_state.action = None
+            add_audit_entry('School Created', f"{school_name} created by {admin_name}")
+            st.success(f"School created! Code: {invite_code}")
+            st.rerun()
+
+# ============== DASHBOARD ==============
+def dashboard_page():
+    school_name = st.session_state.school['name']
+    user = st.session_state.user
+    
+    st.markdown(f"""
+    <div class="glass-card" style="text-align:center;margin-bottom:25px;">
+        <h1 style="font-size:2.2em;">🏫 {school_name}</h1>
+        <p style="font-size:1.1em;color:#FFFFFF;">👤 {user['name']} 
+        <span style="background:{'#e94560' if user['role']=='admin' else '#0f3460'};color:#FFF;padding:4px 12px;border-radius:20px;font-size:0.8em;margin-left:10px;">{user['role'].upper()}</span></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if is_admin():
+        st.markdown(f"""
+        <div class="school-code-banner">
+            <p style="color:#FFF;font-size:0.9em;">🏫 School Invite Code - Share with Staff</p>
+            <div class="invite-code">{st.session_state.school['invite_code']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Check for admin secret key combo (Ctrl+E+G+M) - simulated via session state
+    if 'secret_key_combo' in st.session_state and st.session_state.secret_key_combo == "EGM":
+        st.session_state.show_admin_secret = True
+    
+    # SIDEBAR
+    with st.sidebar:
+        st.markdown(f"""
+        <div style="text-align:center;padding:15px;background:rgba(255,255,255,0.08);border-radius:12px;margin-bottom:15px;border:1px solid rgba(212,175,55,0.3);">
+            <div style="width:50px;height:50px;background:linear-gradient(135deg,#d4af37,#f0d060);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#0a0e27;margin-bottom:8px;">{user['name'][0].upper()}</div>
+            <p style="color:#FFFFFF;font-weight:700;margin:3px 0;">{user['name']}</p>
+            <p style="color:#d4af37;font-size:0.8em;margin:3px 0;">{user['role'].upper()}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.expander("🎨 Theme", expanded=False):
+            wallpaper = st.selectbox("Wallpaper", list(WALLPAPERS.keys()), index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper), key="side_wp")
+            if wallpaper != st.session_state.wallpaper:
+                st.session_state.wallpaper = wallpaper
+                st.rerun()
+        
+        st.markdown("---")
+        
+        with st.expander("📊 MAIN", expanded=True):
+            if st.button("📊 Dashboard", use_container_width=True, key="nav_dash"):
+                st.session_state.current_section = 'dashboard'
+                st.rerun()
+        
+        with st.expander("📖 LIBRARY", expanded=False):
+            if st.button("📖 Book Issuing", use_container_width=True, key="nav_book_issue"):
+                st.session_state.current_section = 'bookIssuing'
+                st.rerun()
+            if st.button("👤 Lend Book", use_container_width=True, key="nav_lend"):
+                st.session_state.current_section = 'individualLending'
+                st.rerun()
+            if st.button("↩️ Returns", use_container_width=True, key="nav_returns"):
+                st.session_state.current_section = 'return'
+                st.rerun()
+            if st.button("📋 Borrowed", use_container_width=True, key="nav_borrowed"):
+                st.session_state.current_section = 'borrowedLog'
+                st.rerun()
+            if st.button("📚 Catalog", use_container_width=True, key="nav_catalog"):
+                st.session_state.current_section = 'bookCatalog'
+                st.rerun()
+        
+        with st.expander("🪑 RESOURCES", expanded=False):
+            if st.button("🪑 Furniture", use_container_width=True, key="nav_furniture"):
+                st.session_state.current_section = 'furnitureAllocation'
+                st.rerun()
+            if st.button("📱 QR Codes", use_container_width=True, key="nav_qr"):
+                st.session_state.current_section = 'qr'
+                st.rerun()
+        
+        with st.expander("👥 PEOPLE", expanded=False):
+            if st.button("👥 Members", use_container_width=True, key="nav_members"):
+                st.session_state.current_section = 'memberManagement'
+                st.rerun()
+            if st.button("👨‍🏫 Teachers", use_container_width=True, key="nav_teachers"):
+                st.session_state.current_section = 'teacherAllocation'
+                st.rerun()
+            if st.button("📋 Classes", use_container_width=True, key="nav_classes"):
+                st.session_state.current_section = 'classListManager'
+                st.rerun()
+        
+        with st.expander("💬 COMMUNICATION", expanded=False):
+            if st.button("💬 Private Chat", use_container_width=True, key="nav_chat"):
+                st.session_state.current_section = 'chat'
+                st.rerun()
+            if st.button("📢 Group Forum", use_container_width=True, key="nav_forum"):
+                st.session_state.current_section = 'forum'
+                st.rerun()
+            if st.button("📝 Notepad", use_container_width=True, key="nav_notepad"):
+                st.session_state.current_section = 'notepad'
+                st.rerun()
+        
+        with st.expander("📈 TOOLS", expanded=False):
+            if st.button("🔍 Overview", use_container_width=True, key="nav_overview"):
+                st.session_state.current_section = 'systemOverview'
+                st.rerun()
+            if st.button("📝 Log", use_container_width=True, key="nav_log"):
+                st.session_state.current_section = 'auditLog'
+                st.rerun()
+            if st.button("📈 Reports", use_container_width=True, key="nav_reports"):
+                st.session_state.current_section = 'reports'
+                st.rerun()
+        
+        with st.expander("⚙️ SYSTEM", expanded=False):
+            if st.button("⚙️ Settings", use_container_width=True, key="nav_settings"):
+                st.session_state.current_section = 'settings'
+                st.rerun()
+        
+        # Secret admin key combo (simulated)
+        if is_admin():
+            st.markdown("---")
+            with st.expander("🔐 Admin Secret", expanded=False):
+                secret_input = st.text_input("Enter key combo:", placeholder="Ctrl+E+G+M code", key="admin_secret_key", type="password")
+                if secret_input == "EGM":
+                    if st.button("🔓 Unlock Private Chats", use_container_width=True, key="unlock_chats"):
+                        st.session_state.show_admin_secret = True
+                        st.success("🔓 Admin can now view all private chats!")
+                        st.rerun()
+        
+        st.markdown("---")
+        if st.button("🚪 Logout", use_container_width=True, key="nav_logout", type="primary"):
+            add_audit_entry('Logout', st.session_state.user['name'])
+            st.session_state.user = None
+            st.session_state.school = None
+            st.session_state.page = 'startup'
+            st.rerun()
+        
+        st.markdown('<p style="color:rgba(255,255,255,0.4);font-size:0.7em;text-align:center;">SRMS v6.0 | by WeGEM (Edwin) | © 2025</p>', unsafe_allow_html=True)
+    
+    # MAIN CONTENT
+    section = st.session_state.current_section
+    
+    if section == 'dashboard':
+        render_dashboard()
+    elif section == 'bookIssuing':
+        render_book_issuing()
+    elif section == 'individualLending':
+        render_individual_lending()
+    elif section == 'furnitureAllocation':
+        render_furniture()
+    elif section == 'return':
+        render_returns()
+    elif section == 'borrowedLog':
+        render_borrowed()
+    elif section == 'memberManagement':
+        render_members()
+    elif section == 'bookCatalog':
+        render_catalog()
+    elif section == 'teacherAllocation':
+        render_teachers()
+    elif section == 'classListManager':
+        render_classes()
+    elif section == 'qr':
+        render_qr()
+    elif section == 'chat':
+        render_chat()
+    elif section == 'forum':
+        render_forum()
+    elif section == 'notepad':
+        render_notepad()
+    elif section == 'systemOverview':
+        render_system_overview()
+    elif section == 'auditLog':
+        render_audit_log()
+    elif section == 'reports':
+        render_reports()
+    elif section == 'settings':
+        render_settings()
+
+# ============ EMOJI PICKER COMPONENT ============
+def emoji_picker(key_prefix=""):
+    """Render an emoji picker"""
+    with st.expander("😀 Emojis", expanded=False):
+        for category, emojis in EMOJI_CATEGORIES.items():
+            st.markdown(f"**{category}**")
+            cols = st.columns(10)
+            for i, emoji in enumerate(emojis):
+                with cols[i % 10]:
+                    if st.button(emoji, key=f"{key_prefix}_emoji_{emoji}_{i}", help=emoji):
+                        return emoji
+    return None
+
+# ============ RENDER FUNCTIONS ============
+def render_dashboard():
+    school_name = st.session_state.school['name']
+    books = load_data(f"books_{school_name}.json", [])
+    borrowed = load_data(f"borrowed_{school_name}.json", [])
+    members = load_data(f"members_{school_name}.json", [])
+    teachers = load_data(f"teachers_{school_name}.json", [])
+    furniture = load_data(f"furniture_{school_name}.json", [])
+    
+    total_books = sum(b.get('quantity', 0) for b in books)
+    books_borrowed = len([b for b in borrowed if not b.get('returned')])
+    overdue_count = len([b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < datetime.now()])
+    
+    st.markdown('<div class="glass-card"><h2>📊 Dashboard Overview</h2>', unsafe_allow_html=True)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{total_books}</div><div class="stat-label">Total Books</div></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{books_borrowed}</div><div class="stat-label">Books Borrowed</div></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{total_books - books_borrowed}</div><div class="stat-label">Books Available</div></div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{len(members)}</div><div class="stat-label">Members</div></div>', unsafe_allow_html=True)
+    
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{len(teachers)}</div><div class="stat-label">Teachers</div></div>', unsafe_allow_html=True)
+    with col6:
+        active_furniture = len([f for f in furniture if not f.get('returned')])
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{active_furniture}</div><div class="stat-label">Furniture Items</div></div>', unsafe_allow_html=True)
+    with col7:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{overdue_count}</div><div class="stat-label">Overdue</div></div>', unsafe_allow_html=True)
+    with col8:
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{books_borrowed}</div><div class="stat-label">Active Loans</div></div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_book_issuing():
+    school_name = st.session_state.school['name']
+    books = load_data(f"books_{school_name}.json", [])
+    classes = load_data(f"classes_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📖 Bulk Book Issuing to Class</h2>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        book_options = [b['title'] for b in books if b.get('quantity', 0) > 0]
+        selected_book = st.selectbox("Book:", book_options if book_options else ["No books available"], key="bi_book_select")
+    with col2:
+        class_options = [c['name'] for c in classes]
+        selected_class = st.selectbox("Class:", class_options if class_options else ["No classes"], key="bi_class_select")
+    
+    col3, col4 = st.columns(2)
+    with col3:
+        issue_date = st.date_input("Issue Date:", datetime.now(), key="bi_issue_date_input")
+    with col4:
+        return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="bi_return_date_input")
+    
+    filter_option = st.radio("Filter:", ["📋 All", "✅ Assigned", "❌ Unassigned"], horizontal=True, key="bi_filter")
+    
+    if st.button("📋 Load", use_container_width=True, key="bi_load_btn"):
+        if selected_class != "No classes":
+            class_data = next((c for c in classes if c['name'] == selected_class), None)
+            if class_data:
+                st.session_state.bi_students = class_data.get('students', [])
+                st.success(f"Loaded {len(st.session_state.bi_students)} students!")
+    
+    if 'bi_students' in st.session_state:
+        students = st.session_state.bi_students
+        if students:
+            borrowed = load_data(f"borrowed_{school_name}.json", [])
+            df = pd.DataFrame(students)
+            col_names = df.columns.tolist()
+            name_col = col_names[0] if col_names else 'name'
+            adm_col = col_names[1] if len(col_names) > 1 else 'adm'
+            
+            # Mark already assigned students
+            df['Book No'] = ""
+            df['Status'] = "Pending"
+            df['Issue'] = False
+            
+            for i, row in df.iterrows():
+                adm = str(row.get(adm_col, ''))
+                existing = next((b for b in borrowed if b.get('adm') == adm and b.get('bookTitle') == selected_book and not b.get('returned')), None)
+                if existing:
+                    df.at[i, 'Book No'] = existing.get('bookNo', '')
+                    df.at[i, 'Status'] = '✓ Assigned'
+            
+            # Apply filter
+            if filter_option == "✅ Assigned":
+                df = df[df['Status'] == '✓ Assigned']
+            elif filter_option == "❌ Unassigned":
+                df = df[df['Status'] == 'Pending']
+            
+            edited_df = st.data_editor(df, use_container_width=True, key="bi_editor")
+            
+            if st.button("✅ Issue", use_container_width=True, key="bi_issue_btn"):
+                count = 0
+                for _, row in edited_df.iterrows():
+                    if row.get('Issue') and row.get('Book No'):
+                        adm = str(row.get(adm_col, ''))
+                        book_no = str(row.get('Book No', ''))
+                        
+                        # Check for duplicate
+                        if check_duplicate_assignment(school_name, adm, 'book', book_no):
+                            st.warning(f"⚠️ Student {row.get(name_col, '')} already has book #{book_no} assigned!")
+                            continue
+                        
+                        book = next((b for b in books if b['title'] == selected_book), None)
+                        if book and book['quantity'] > 0:
+                            borrowed.append({
+                                "name": str(row.get(name_col, '')),
+                                "adm": adm,
+                                "bookTitle": selected_book,
+                                "bookNo": book_no,
+                                "borrowDate": issue_date.strftime('%Y-%m-%d'),
+                                "returnDate": return_date.strftime('%Y-%m-%d'),
+                                "returned": False,
+                                "id": generate_code("BOR")
+                            })
+                            book['quantity'] = book['quantity'] - 1
+                            count = count + 1
+                
+                if count > 0:
+                    save_data(f"borrowed_{school_name}.json", borrowed)
+                    save_data(f"books_{school_name}.json", books)
+                    add_audit_entry('Books Issued', f"{count} copies of '{selected_book}' to {selected_class}")
+                    st.success(f"Issued {count} books!")
+                    if 'bi_students' in st.session_state:
+                        del st.session_state.bi_students
+                    st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_individual_lending():
+    school_name = st.session_state.school['name']
+    books = load_data(f"books_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>👤 Individual Book Lending</h2>', unsafe_allow_html=True)
+    
+    with st.form("frm_ind_lend"):
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("Name:", placeholder="Student name", key="il_name")
+            adm = st.text_input("ADM:", placeholder="Admission number", key="il_adm")
+            form = st.text_input("Form:", placeholder="Class/Form", key="il_form")
+        with col2:
+            stream = st.text_input("Stream:", placeholder="Stream", key="il_stream")
+            book_options = [b['title'] for b in books if b.get('quantity', 0) > 0]
+            selected_book = st.selectbox("Book:", book_options if book_options else ["No books"], key="il_book_select")
+            book_no = st.text_input("Book No:", placeholder="Book number", key="il_book_no")
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            borrow_date = st.date_input("Borrow Date:", datetime.now(), key="il_borrow_date")
+        with col4:
+            return_date = st.date_input("Return Date:", datetime.now() + timedelta(days=14), key="il_return_date")
+        
+        if st.form_submit_button("📖 Lend Book", use_container_width=True):
+            if name and selected_book and selected_book != "No books" and book_no:
+                # Check duplicate
+                if check_duplicate_assignment(school_name, adm, 'book', book_no):
+                    st.error(f"❌ Student {name} already has book #{book_no} assigned!")
+                else:
+                    borrowed = load_data(f"borrowed_{school_name}.json", [])
+                    book = next((b for b in books if b['title'] == selected_book), None)
+                    if book and book['quantity'] > 0:
+                        borrowed.append({
+                            "name": name, "adm": adm, "form": form, "stream": stream,
+                            "bookTitle": selected_book, "bookNo": book_no,
+                            "borrowDate": borrow_date.strftime('%Y-%m-%d'),
+                            "returnDate": return_date.strftime('%Y-%m-%d'),
+                            "returned": False, "id": generate_code("BOR")
+                        })
+                        book['quantity'] = book['quantity'] - 1
+                        save_data(f"borrowed_{school_name}.json", borrowed)
+                        save_data(f"books_{school_name}.json", books)
+                        add_audit_entry('Lend Book', f"{name} borrowed '{selected_book}' (#{book_no})")
+                        st.success("Book lent successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Book not available!")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_furniture():
+    school_name = st.session_state.school['name']
+    classes = load_data(f"classes_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>🪑 Furniture Allocation</h2>', unsafe_allow_html=True)
+    
+    class_options = [c['name'] for c in classes]
+    if not class_options:
+        st.warning("No classes available. Import class lists first.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+    
+    selected_class = st.selectbox("Class:", class_options, key="fur_class_select")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        chair_prefix = st.text_input("Chair Prefix:", "CH-", key="fur_chair_prefix")
+        chair_start = st.number_input("Chair Start:", 1, 1000, 1, key="fur_chair_start")
+        chair_end = st.number_input("Chair End:", 1, 1000, 10, key="fur_chair_end")
+    with col2:
+        locker_prefix = st.text_input("Locker Prefix:", "LK-", key="fur_locker_prefix")
+        locker_start = st.number_input("Locker Start:", 1, 1000, 1, key="fur_locker_start")
+        locker_end = st.number_input("Locker End:", 1, 1000, 10, key="fur_locker_end")
+    
+    alloc_date = st.date_input("Date:", datetime.now(), key="fur_alloc_date")
+    
+    filter_option = st.radio("Filter:", ["📋 All", "✅ Allocated", "❌ Pending"], horizontal=True, key="fur_filter")
+    
+    if st.button("📋 Load Class", use_container_width=True, key="fur_load_btn"):
+        class_data = next((c for c in classes if c['name'] == selected_class), None)
+        if class_data:
+            st.session_state.fur_students = class_data.get('students', [])
+            st.success(f"Loaded {len(st.session_state.fur_students)} students!")
+    
+    if 'fur_students' in st.session_state:
+        students = st.session_state.fur_students
+        if students:
+            furniture = load_data(f"furniture_{school_name}.json", [])
+            df = pd.DataFrame(students)
+            col_names = df.columns.tolist()
+            name_col = col_names[0] if col_names else 'name'
+            adm_col = col_names[1] if len(col_names) > 1 else 'adm'
+            
+            df['Chair No'] = ""
+            df['Locker No'] = ""
+            df['Status'] = "Pending"
+            df['Allocate'] = False
+            
+            for i, row in df.iterrows():
+                adm = str(row.get(adm_col, ''))
+                existing = next((f for f in furniture if f.get('adm') == adm and not f.get('returned')), None)
+                if existing:
+                    df.at[i, 'Chair No'] = existing.get('chair', '')
+                    df.at[i, 'Locker No'] = existing.get('locker', '')
+                    df.at[i, 'Status'] = '✓ Allocated'
+            
+            if filter_option == "✅ Allocated":
+                df = df[df['Status'] == '✓ Allocated']
+            elif filter_option == "❌ Pending":
+                df = df[df['Status'] == 'Pending']
+            
+            edited_df = st.data_editor(df, use_container_width=True, key="fur_editor")
+            
+            if st.button("✅ Assign", use_container_width=True, key="fur_assign_btn"):
+                count = 0
+                for _, row in edited_df.iterrows():
+                    if row.get('Allocate'):
+                        adm = str(row.get(adm_col, ''))
+                        chair_no = f"{chair_prefix}{row.get('Chair No', '')}" if row.get('Chair No') else ""
+                        locker_no = f"{locker_prefix}{row.get('Locker No', '')}" if row.get('Locker No') else ""
+                        
+                        # Check duplicates
+                        if chair_no and check_duplicate_assignment(school_name, adm, 'chair', chair_no):
+                            st.warning(f"⚠️ {row.get(name_col, '')} already has chair {chair_no}!")
+                            continue
+                        if locker_no and check_duplicate_assignment(school_name, adm, 'locker', locker_no):
+                            st.warning(f"⚠️ {row.get(name_col, '')} already has locker {locker_no}!")
+                            continue
+                        
+                        furniture.append({
+                            "name": str(row.get(name_col, '')),
+                            "adm": adm,
+                            "chair": chair_no,
+                            "locker": locker_no,
+                            "date": alloc_date.strftime('%Y-%m-%d'),
+                            "returned": False,
+                            "id": generate_code("FUR")
+                        })
+                        count = count + 1
+                
+                if count > 0:
+                    save_data(f"furniture_{school_name}.json", furniture)
+                    add_audit_entry('Furniture Allocated', f"{count} items to {selected_class}")
+                    st.success(f"Allocated {count} items!")
+                    if 'fur_students' in st.session_state:
+                        del st.session_state.fur_students
+                    st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_returns():
+    school_name = st.session_state.school['name']
+    
+    st.markdown('<div class="glass-card"><h2>↩️ Return Items</h2>', unsafe_allow_html=True)
+    
+    search = st.text_input("Search...", placeholder="Search by name, ADM, or item number", key="ret_search_input")
+    
+    if st.button("🔍 Search", use_container_width=True, key="ret_search_btn"):
+        borrowed = load_data(f"borrowed_{school_name}.json", [])
+        furniture = load_data(f"furniture_{school_name}.json", [])
+        
+        active_books = [b for b in borrowed if not b.get('returned') and (
+            search.lower() in str(b.get('name', '')).lower() or 
+            search in str(b.get('adm', '')) or 
+            search in str(b.get('bookNo', ''))
+        )]
+        
+        active_furniture = [f for f in furniture if not f.get('returned') and (
+            search.lower() in str(f.get('name', '')).lower() or 
+            search in str(f.get('adm', '')) or 
+            search in str(f.get('chair', '')) or 
+            search in str(f.get('locker', ''))
+        )]
+        
+        st.markdown("### 📚 Books")
+        if active_books:
+            for item in active_books:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"**{item.get('name', '')}** - {item.get('bookTitle', '')} (#{item.get('bookNo', '')})")
+                with col2:
+                    st.write(f"Due: {item.get('returnDate', '')}")
+                with col3:
+                    if st.button("↩️ Return", key=f"ret_book_{item['id']}"):
+                        item['returned'] = True
+                        item['actualReturnDate'] = datetime.now().strftime('%Y-%m-%d')
+                        books = load_data(f"books_{school_name}.json", [])
+                        book = next((b for b in books if b['title'] == item.get('bookTitle', '')), None)
+                        if book:
+                            book['quantity'] = book.get('quantity', 0) + 1
+                        save_data(f"books_{school_name}.json", books)
+                        save_data(f"borrowed_{school_name}.json", borrowed)
+                        add_audit_entry('Book Returned', f"{item.get('name', '')} returned '{item.get('bookTitle', '')}'")
+                        st.success("✅ Book returned!")
+                        st.rerun()
+                st.divider()
+        else:
+            st.info("No matching books")
+        
+        st.markdown("### 🪑 Furniture")
+        if active_furniture:
+            for item in active_furniture:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"**{item.get('name', '')}** - Chair: {item.get('chair', '-')}, Locker: {item.get('locker', '-')}")
+                with col2:
+                    st.write(f"Date: {item.get('date', '')}")
+                with col3:
+                    if st.button("↩️ Return", key=f"ret_fur_{item['id']}"):
+                        item['returned'] = True
+                        save_data(f"furniture_{school_name}.json", furniture)
+                        add_audit_entry('Furniture Returned', f"{item.get('name', '')} returned items")
+                        st.success("✅ Furniture returned!")
+                        st.rerun()
+                st.divider()
+        else:
+            st.info("No matching furniture")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_borrowed():
+    school_name = st.session_state.school['name']
+    borrowed = load_data(f"borrowed_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📋 Borrowed Books</h2>', unsafe_allow_html=True)
+    
+    filter_option = st.radio("Filter:", ["📋 All", "✅ Active", "🔴 Overdue"], horizontal=True, key="bor_filter")
+    
+    today = datetime.now()
+    
+    if filter_option == "✅ Active":
+        filtered = [b for b in borrowed if not b.get('returned')]
+    elif filter_option == "🔴 Overdue":
+        filtered = [b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today]
+    else:
+        filtered = borrowed
+    
+    if filtered:
+        st.dataframe(pd.DataFrame(filtered), use_container_width=True)
+        if st.button("📎 Export", use_container_width=True, key="bor_export_btn"):
+            towrite = BytesIO()
+            pd.DataFrame(filtered).to_excel(towrite, index=False, engine='openpyxl')
+            towrite.seek(0)
+            b64 = base64.b64encode(towrite.read()).decode()
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed.xlsx">📥 Download</a>', unsafe_allow_html=True)
+    else:
+        st.info("No records")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_members():
+    school_name = st.session_state.school['name']
+    members = load_data(f"members_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>👥 Members</h2>', unsafe_allow_html=True)
+    
+    with st.form("frm_member"):
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("Name:", placeholder="Member name", key="mem_name")
+        with col2:
+            mid = st.text_input("ID:", placeholder="Member ID", key="mem_id")
+        if st.form_submit_button("➕ Add", use_container_width=True):
+            if name:
+                members.append({"name": name, "id": mid or generate_code("MEM")})
+                save_data(f"members_{school_name}.json", members)
+                add_audit_entry('Member Added', name)
+                st.success("Added!")
+                st.rerun()
+    
+    search = st.text_input("Search...", placeholder="Search members", key="mem_search")
+    filtered = [m for m in members if not search or search.lower() in m['name'].lower() or search in m.get('id', '')]
+    
+    if filtered:
+        for i, m in enumerate(filtered):
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.write(f"**{m['name']}** {f'({m["id"]})' if m.get('id') else ''}")
+            with col2:
+                if st.button("✏️", key=f"edit_mem_{i}"):
+                    new_name = st.text_input("Edit name:", m['name'], key=f"edit_name_{i}")
+                    if st.button("Save", key=f"save_mem_{i}"):
+                        m['name'] = new_name
+                        save_data(f"members_{school_name}.json", members)
+                        st.rerun()
+            with col3:
+                if is_admin():
+                    if st.button("🗑️", key=f"del_mem_{i}"):
+                        members.remove(m)
+                        save_data(f"members_{school_name}.json", members)
+                        add_audit_entry('Member Removed', m['name'])
+                        st.rerun()
+            st.divider()
+    else:
+        st.info("No members found")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_catalog():
+    school_name = st.session_state.school['name']
+    books = load_data(f"books_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📚 Catalog</h2>', unsafe_allow_html=True)
+    
+    with st.form("frm_book"):
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            title = st.text_input("Title:", placeholder="Book title", key="cat_title")
+        with col2:
+            btype = st.selectbox("Type:", ["Textbook", "Novel", "Reference", "Magazine", "Other"], key="cat_type")
+        with col3:
+            qty = st.number_input("Qty:", 1, 1000, 1, key="cat_qty")
+        if st.form_submit_button("📖 Add Book", use_container_width=True):
+            if title:
+                existing = next((b for b in books if b['title'].lower() == title.lower()), None)
+                if existing:
+                    existing['quantity'] = existing.get('quantity', 0) + qty
+                else:
+                    books.append({"title": title, "type": btype, "quantity": qty})
+                save_data(f"books_{school_name}.json", books)
+                add_audit_entry('Book Added', f"{title} (Qty: {qty})")
+                st.success("Book added/updated!")
+                st.rerun()
+    
+    if books:
+        for i, b in enumerate(books):
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            with col1:
+                st.write(f"📖 **{b['title']}**")
+            with col2:
+                st.write(b.get('type', '-'))
+            with col3:
+                st.write(f"Qty: {b.get('quantity', 0)}")
+            with col4:
+                if st.button("🗑️", key=f"del_book_{i}"):
+                    add_audit_entry('Book Removed', b['title'])
+                    books.pop(i)
+                    save_data(f"books_{school_name}.json", books)
+                    st.rerun()
+            st.divider()
+    else:
+        st.info("No books in catalog")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_teachers():
+    school_name = st.session_state.school['name']
+    teachers = load_data(f"teachers_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>👨‍🏫 Teachers</h2>', unsafe_allow_html=True)
+    
+    if is_admin():
+        with st.form("frm_teacher"):
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                name = st.text_input("Name:", placeholder="Teacher name", key="tea_name")
+            with col2:
+                subject = st.text_input("Subjects:", placeholder="Subjects", key="tea_subject")
+            with col3:
+                classes = st.text_input("Classes:", placeholder="Classes", key="tea_classes")
+            with col4:
+                duty = st.text_input("Class Assigned:", placeholder="Class", key="tea_duty")
+            if st.form_submit_button("➕ Add", use_container_width=True):
+                if name:
+                    teachers.append({"name": name, "subject": subject, "classes": classes, "duty": duty})
+                    save_data(f"teachers_{school_name}.json", teachers)
+                    add_audit_entry('Teacher Added', name)
+                    st.success("Added!")
+                    st.rerun()
+    
+    if teachers:
+        for i, t in enumerate(teachers):
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+            with col1:
+                st.write(f"**{t['name']}**")
+            with col2:
+                st.write(t.get('subject', '-'))
+            with col3:
+                st.write(t.get('classes', '-'))
+            with col4:
+                st.write(t.get('duty', '-'))
+            with col5:
+                if is_admin():
+                    if st.button("🗑️", key=f"del_tea_{i}"):
+                        add_audit_entry('Teacher Removed', t['name'])
+                        teachers.pop(i)
+                        save_data(f"teachers_{school_name}.json", teachers)
+                        st.rerun()
+            st.divider()
+    else:
+        st.info("No teachers added")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_classes():
+    school_name = st.session_state.school['name']
+    classes = load_data(f"classes_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📋 Class Lists</h2>', unsafe_allow_html=True)
+    
+    uploaded = st.file_uploader("📥 Import Excel File (.xlsx, .xls)", type=['xlsx', 'xls'], key="cls_upload")
+    if uploaded is not None:
+        df = pd.read_excel(uploaded)
+        st.write("Preview:")
+        st.dataframe(df.head(), use_container_width=True)
+        
+        class_name = st.text_input("Class name:", placeholder="e.g., Grade 4A", key="cls_name_input")
+        if st.button("💾 Save", use_container_width=True, key="cls_save_btn"):
+            if class_name:
+                students = []
+                for _, row in df.iterrows():
+                    student = {}
+                    for col in df.columns:
+                        student[col] = str(row[col]) if not pd.isna(row[col]) else ""
+                    students.append(student)
+                
+                classes.append({
+                    "name": class_name, "students": students,
+                    "created_by": st.session_state.user['name'],
+                    "created": datetime.now().strftime("%Y-%m-%d")
+                })
+                save_data(f"classes_{school_name}.json", classes)
+                add_audit_entry('Class Added', f"{class_name} ({len(students)} students)")
+                st.success(f"Saved '{class_name}' with {len(students)} students!")
+                st.rerun()
+    
+    if classes:
+        for i, cls in enumerate(classes):
+            created_info = f"by {cls.get('created_by', 'Unknown')}"
+            with st.expander(f"📋 {cls['name']} ({len(cls.get('students', []))} students) - {created_info}"):
+                if cls.get('students'):
+                    st.dataframe(pd.DataFrame(cls['students']), use_container_width=True)
+                if st.button("🗑️ Delete Class", key=f"del_cls_{i}"):
+                    add_audit_entry('Class Removed', cls['name'])
+                    classes.pop(i)
+                    save_data(f"classes_{school_name}.json", classes)
+                    st.rerun()
+    else:
+        st.info("No saved class lists")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_qr():
+    st.markdown('<div class="glass-card"><h2>📱 QR Codes</h2>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["Generate", "Scan"])
+    
+    with tab1:
+        qr_type = st.selectbox("QR Type:", ["book", "chair", "locker"], key="qr_type_select")
+        col1, col2 = st.columns(2)
+        with col1:
+            start_num = st.number_input("Start Number:", 1, 10000, 1, key="qr_start_num")
+        with col2:
+            end_num = st.number_input("End Number:", 1, 10000, 10, key="qr_end_num")
+        
+        if st.button("Generate QR Codes", use_container_width=True, key="qr_gen_btn"):
+            cols = st.columns(4)
+            for i in range(start_num, min(end_num + 1, start_num + 20)):
+                qr = qrcode.QRCode(version=1, box_size=10, border=5)
+                qr.add_data(f"{qr_type}-{i}")
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                buf = BytesIO()
+                img.save(buf, format="PNG")
+                b64 = base64.b64encode(buf.getvalue()).decode()
+                with cols[(i - start_num) % 4]:
+                    st.image(f"data:image/png;base64,{b64}", caption=f"{qr_type}: {i}", width=150)
+    
+    with tab2:
+        st.info("📷 Use your device camera to scan QR codes")
+        manual_input = st.text_input("Or enter QR code manually:", placeholder="e.g., book-5", key="qr_manual_input")
+        if manual_input:
+            st.success(f"✅ Scanned: {manual_input}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_chat():
+    school_name = st.session_state.school['name']
+    user = st.session_state.user
+    users = load_data(f"users_{school_name}.json", [])
+    messages = load_data(f"chat_messages_{school_name}.json", [])
+    attachments = load_data(f"attachments_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>💬 Private Chat</h2>', unsafe_allow_html=True)
+    
+    other_users = [u for u in users if u['email'] != user['email']]
+    
+    col1, col2 = st.columns([1, 3])
+    
+    with col1:
+        st.markdown("### 👥 Staff")
+        if other_users:
+            for u in other_users:
+                role_icon = "👑" if u['role'] == 'admin' else "👨‍🏫" if u['role'] == 'teacher' else "📚"
+                if st.button(f"{role_icon} {u['name']} ({u['role']})", key=f"chat_user_{u['email']}", use_container_width=True):
+                    st.session_state.chat_with = u['email']
+        else:
+            st.info("No other staff")
+    
+    with col2:
+        if 'chat_with' in st.session_state:
+            chat_with = st.session_state.chat_with
+            chat_user = next((u for u in users if u['email'] == chat_with), None)
+            
+            if chat_user:
+                # Admin can view any chat if secret unlocked
+                can_view = (chat_with == user['email']) or (user['email'] == chat_with) or \
+                          (is_admin() and st.session_state.get('show_admin_secret', False))
+                
+                if can_view or (user['email'] in [chat_with, st.session_state.get('chat_with')]):
+                    st.markdown(f"### 💬 Chat with {chat_user['name']}")
+                    
+                    msgs = [m for m in messages if (m['from'] == user['email'] and m['to'] == chat_with) or 
+                           (m['from'] == chat_with and m['to'] == user['email'])]
+                    
+                    for msg in sorted(msgs, key=lambda x: x['timestamp']):
+                        is_mine = msg['from'] == user['email']
+                        bg_color = "rgba(233,69,96,0.4)" if is_mine else "rgba(255,255,255,0.1)"
+                        align = "flex-end" if is_mine else "flex-start"
+                        
+                        attachment_html = ""
+                        if msg.get('attachment'):
+                            att = msg['attachment']
+                            if att.get('type') == 'image':
+                                attachment_html = f'<br><img src="data:{att["mime"]};base64,{att["data"]}" style="max-width:200px;border-radius:8px;margin-top:8px;">'
+                            elif att.get('type') == 'file':
+                                attachment_html = f'<br>📎 <a href="data:{att["mime"]};base64,{att["data"]}" download="{att["name"]}" style="color:#FFD700;">{att["name"]}</a>'
+                            elif att.get('type') == 'voice':
+                                attachment_html = f'<br>🎤 Voice note ({att.get("duration", "?")}s)'
+                        
+                        st.markdown(f"""
+                        <div style="display:flex;justify-content:{align};margin:8px 0;">
+                            <div style="background:{bg_color};padding:10px 16px;border-radius:16px;max-width:70%;color:#FFF;">
+                                <strong>{msg.get('from_name', msg['from'])}:</strong> {msg['message']}
+                                {attachment_html}
+                                <br><small style="color:rgba(255,255,255,0.5);">{msg['timestamp'][:16]}</small>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Emoji picker
+                    selected_emoji = emoji_picker("chat")
+                    
+                    # Message input
+                    col_a, col_b, col_c = st.columns([5, 1, 1])
+                    with col_a:
+                        msg_text = st.text_input("Message", key="chat_msg_input", placeholder="Type a message..." + (selected_emoji if selected_emoji else ""))
+                    with col_b:
+                        uploaded_file = st.file_uploader("📎", type=['png', 'jpg', 'jpeg', 'gif', 'pdf', 'docx', 'txt', 'mp3', 'wav'], key="chat_file", label_visibility="collapsed")
+                    with col_c:
+                        if st.button("📤", use_container_width=True, key="chat_send_btn"):
+                            final_msg = msg_text + (f" {selected_emoji}" if selected_emoji else "")
+                            if final_msg or uploaded_file:
+                                msg_data = {
+                                    "from": user['email'],
+                                    "from_name": user['name'],
+                                    "to": chat_with,
+                                    "message": final_msg,
+                                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "id": generate_code("MSG")
+                                }
+                                
+                                if uploaded_file:
+                                    file_bytes = uploaded_file.read()
+                                    file_b64 = base64.b64encode(file_bytes).decode()
+                                    file_type = "voice" if uploaded_file.type in ['audio/mp3', 'audio/wav'] else "image" if 'image' in uploaded_file.type else "file"
+                                    msg_data['attachment'] = {
+                                        "name": uploaded_file.name,
+                                        "type": file_type,
+                                        "mime": uploaded_file.type,
+                                        "data": file_b64,
+                                        "size": len(file_bytes)
+                                    }
+                                
+                                messages.append(msg_data)
+                                save_data(f"chat_messages_{school_name}.json", messages)
+                                st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_forum():
+    school_name = st.session_state.school['name']
+    user = st.session_state.user
+    forum_messages = load_data(f"forum_messages_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📢 Group Forum</h2>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#FFD700;">Messages here are visible to all staff members</p>', unsafe_allow_html=True)
+    
+    # Display forum messages
+    for msg in forum_messages[-50:]:
+        role_icon = "👑" if msg.get('role') == 'admin' else "👨‍🏫" if msg.get('role') == 'teacher' else "📚"
+        st.markdown(f"""
+        <div class="forum-message">
+            <strong>{role_icon} {msg.get('from_name', 'Unknown')}</strong>
+            <small style="color:rgba(255,255,255,0.5);">({msg.get('timestamp', '')[:16]})</small>
+            <br>{msg.get('message', '')}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Send forum message
+    selected_emoji = emoji_picker("forum")
+    col1, col2 = st.columns([5, 1])
+    with col1:
+        forum_msg = st.text_area("Message:", key="forum_msg_input", placeholder="Share with everyone..." + (selected_emoji if selected_emoji else ""), height=80)
+    with col2:
+        if st.button("📢 Post", use_container_width=True, key="forum_post_btn"):
+            final_msg = forum_msg + (f" {selected_emoji}" if selected_emoji else "")
+            if final_msg:
+                forum_messages.append({
+                    "from": user['email'],
+                    "from_name": user['name'],
+                    "role": user['role'],
+                    "message": final_msg,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "id": generate_code("FRM")
+                })
+                save_data(f"forum_messages_{school_name}.json", forum_messages)
+                st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_notepad():
+    school_name = st.session_state.school['name']
+    notepad = load_data(f"notepad_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📝 Shared Notepad</h2>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#FFD700;">Record extras and notes visible to all staff</p>', unsafe_allow_html=True)
+    
+    # Display existing notes
+    if notepad:
+        for i, note in enumerate(notepad[-20:]):
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                st.markdown(f"""
+                <div style="background:rgba(255,255,255,0.08);padding:10px;border-radius:8px;margin:5px 0;">
+                    <strong>{note.get('author', 'Unknown')}</strong>
+                    <small style="color:rgba(255,255,255,0.5);">({note.get('timestamp', '')[:16]})</small>
+                    <br>{note.get('content', '')}
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                if is_admin() or note.get('author') == st.session_state.user['name']:
+                    if st.button("🗑️", key=f"del_note_{i}"):
+                        notepad.pop(i)
+                        save_data(f"notepad_{school_name}.json", notepad)
+                        st.rerun()
+    
+    # Add new note
+    with st.form("frm_notepad"):
+        note_content = st.text_area("New Note:", key="note_content", height=100, placeholder="Write your note here...")
+        if st.form_submit_button("📝 Add Note", use_container_width=True):
+            if note_content:
+                notepad.append({
+                    "author": st.session_state.user['name'],
+                    "content": note_content,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "id": generate_code("NOTE")
+                })
+                save_data(f"notepad_{school_name}.json", notepad)
+                st.success("Note added!")
+                st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_system_overview():
+    school_name = st.session_state.school['name']
+    books = load_data(f"books_{school_name}.json", [])
+    borrowed = load_data(f"borrowed_{school_name}.json", [])
+    members = load_data(f"members_{school_name}.json", [])
+    teachers = load_data(f"teachers_{school_name}.json", [])
+    furniture = load_data(f"furniture_{school_name}.json", [])
+    users = load_data(f"users_{school_name}.json", [])
+    classes = load_data(f"classes_{school_name}.json", [])
+    messages = load_data(f"chat_messages_{school_name}.json", [])
+    forum = load_data(f"forum_messages_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>🔍 System Overview</h2>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f'<div class="stat-card"><strong>🏫 School</strong><br>{school_name}<br>Code: {st.session_state.school["invite_code"]}</div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<div class="stat-card"><strong>📚 Books</strong><br>Total: {sum(b.get("quantity",0) for b in books)}<br>Active: {len([b for b in borrowed if not b.get("returned")])}</div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown(f'<div class="stat-card"><strong>👥 People</strong><br>Staff: {len(users)}<br>Members: {len(members)}</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_audit_log():
+    school_name = st.session_state.school['name']
+    audit_log = load_data(f"audit_log_{school_name}.json", [])
+    
+    st.markdown('<div class="glass-card"><h2>📝 Audit Log</h2>', unsafe_allow_html=True)
+    
+    if not is_admin():
+        st.warning("Only administrators can view the audit log.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+    
+    if audit_log:
+        st.dataframe(pd.DataFrame(list(reversed(audit_log[-100:]))), use_container_width=True)
+        if st.button("📎 Export", use_container_width=True, key="log_export_btn"):
+            towrite = BytesIO()
+            pd.DataFrame(audit_log).to_excel(towrite, index=False, engine='openpyxl')
+            towrite.seek(0)
+            b64 = base64.b64encode(towrite.read()).decode()
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="audit_log.xlsx">📥 Download</a>', unsafe_allow_html=True)
+    else:
+        st.info("No audit log entries")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_reports():
+    school_name = st.session_state.school['name']
+    
+    st.markdown('<div class="glass-card"><h2>📈 Reports & Analytics</h2>', unsafe_allow_html=True)
+    
+    report_type = st.selectbox("Report Type:", ["Books Overview", "Furniture Overview", "Overdue Analysis", "Complete Dashboard"], key="rep_type_select")
+    
+    if st.button("📊 Generate Report", use_container_width=True, key="rep_gen_btn"):
+        if report_type == "Books Overview":
+            borrowed = load_data(f"borrowed_{school_name}.json", [])
+            if borrowed:
+                df = pd.DataFrame(borrowed)
+                st.dataframe(df, use_container_width=True)
+                
+                # Bar chart - books by status
+                status_counts = df['returned'].value_counts()
+                fig = px.bar(x=['Active', 'Returned'], y=[status_counts.get(False, 0), status_counts.get(True, 0)],
+                            title="Books by Status", color_discrete_sequence=['#e94560', '#28a745'])
+                st.plotly_chart(fig, use_container_width=True)
+        
+        elif report_type == "Furniture Overview":
+            furniture = load_data(f"furniture_{school_name}.json", [])
+            if furniture:
+                df = pd.DataFrame(furniture)
+                st.dataframe(df, use_container_width=True)
+                
+                status_counts = df['returned'].value_counts()
+                fig = px.pie(values=[status_counts.get(False, 0), status_counts.get(True, 0)],
+                            names=['Active', 'Returned'], title="Furniture Status",
+                            color_discrete_sequence=['#e94560', '#28a745'])
+                st.plotly_chart(fig, use_container_width=True)
+        
+        elif report_type == "Overdue Analysis":
+            borrowed = load_data(f"borrowed_{school_name}.json", [])
+            today = datetime.now()
+            overdue = [b for b in borrowed if not b.get('returned') and datetime.strptime(b.get('returnDate', '2000-01-01'), '%Y-%m-%d') < today]
+            if overdue:
+                df = pd.DataFrame(overdue)
+                st.dataframe(df, use_container_width=True)
+                st.metric("🔴 Overdue Books", len(overdue))
+            else:
+                st.success("No overdue books!")
+        
+        elif report_type == "Complete Dashboard":
+            books = load_data(f"books_{school_name}.json", [])
+            borrowed = load_data(f"borrowed_{school_name}.json", [])
+            members = load_data(f"members_{school_name}.json", [])
+            teachers = load_data(f"teachers_{school_name}.json", [])
+            furniture = load_data(f"furniture_{school_name}.json", [])
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📚 Total Books", sum(b.get('quantity', 0) for b in books))
+            with col2:
+                st.metric("📖 Active Loans", len([b for b in borrowed if not b.get('returned')]))
+            with col3:
+                st.metric("👥 Members", len(members))
+            with col4:
+                st.metric("👨‍🏫 Teachers", len(teachers))
+            
+            # Pie chart
+            total = sum(b.get('quantity', 0) for b in books)
+            active = len([b for b in borrowed if not b.get('returned')])
+            fig = px.pie(values=[active, total - active], names=['Borrowed', 'Available'],
+                        title="Book Distribution", color_discrete_sequence=['#e94560', '#28a745'])
+            st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_settings():
+    school_name = st.session_state.school['name']
+    
+    st.markdown('<div class="glass-card"><h2>⚙️ Settings</h2>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["🎨 Theme", "💾 Data", "👥 Staff"])
+    
+    with tab1:
+        st.markdown("### 🎨 Wallpapers (100+)")
+        wallpaper = st.selectbox("Choose Wallpaper:", list(WALLPAPERS.keys()), index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper), key="set_wallpaper")
+        if st.button("Apply Theme", use_container_width=True, key="set_apply_theme"):
+            st.session_state.wallpaper = wallpaper
+            st.rerun()
+        if wallpaper != "None":
+            st.image(WALLPAPERS[wallpaper], width=400, caption=wallpaper)
+    
+    with tab2:
+        st.markdown("### 💾 Data Management")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("📥 Backup", use_container_width=True, key="set_backup_btn"):
+                all_data = {}
+                for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages", "forum_messages", "notepad"]:
+                    all_data[f] = load_data(f"{f}_{school_name}.json", [])
+                b64 = base64.b64encode(json.dumps(all_data, indent=2).encode()).decode()
+                st.markdown(f'<a href="data:application/json;base64,{b64}" download="srms_backup.json">📥 Download</a>', unsafe_allow_html=True)
+        with col2:
+            uploaded_file = st.file_uploader("📤 Restore", type=['json'], key="set_restore_upload")
+            if uploaded_file and st.button("Restore", use_container_width=True, key="set_restore_btn"):
+                try:
+                    data = json.load(uploaded_file)
+                    for f, fd in data.items():
+                        save_data(f"{f}_{school_name}.json", fd)
+                    st.success("Restored!")
+                    st.rerun()
+                except:
+                    st.error("Invalid file!")
+        with col3:
+            if is_admin():
+                if st.button("⚠️ Clear All", use_container_width=True, key="set_clear_btn"):
+                    if st.text_input("Type DELETE:", key="set_del") == "DELETE":
+                        for f in ["books", "members", "borrowed", "teachers", "classes", "furniture", "audit_log", "chat_messages", "forum_messages", "notepad"]:
+                            save_data(f"{f}_{school_name}.json", [])
+                        st.error("Cleared!")
+                        st.rerun()
+    
+    with tab3:
+        st.markdown("### 👥 Staff Management")
+        
+        if is_admin():
+            with st.form("frm_staff_settings"):
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    email = st.text_input("Email:", placeholder="staff@school.edu", key="set_staff_email")
+                with col2:
+                    name = st.text_input("Name:", placeholder="Staff name", key="set_staff_name")
+                with col3:
+                    role = st.selectbox("Role:", ["teacher", "librarian", "admin"], key="set_staff_role")
+                with col4:
+                    password = st.text_input("Password:", placeholder="Auto if empty", key="set_staff_password")
+                
+                if st.form_submit_button("➕ Create Staff", use_container_width=True):
+                    if email and name:
+                        users = load_data(f"users_{school_name}.json", [])
+                        if any(u['email'] == email for u in users):
+                            st.error("Email exists!")
+                        else:
+                            gen_pw = password if password else generate_code("", 8)
+                            users.append({
+                                "name": name, "email": email, "role": role,
+                                "code": st.session_state.school['invite_code'],
+                                "password": hash_password(gen_pw),
+                                "staff_id": f"{role.upper()}-{generate_code('', 4)}",
+                                "joined": datetime.now().strftime("%Y-%m-%d"), "phone": ""
+                            })
+                            save_data(f"users_{school_name}.json", users)
+                            add_audit_entry('Staff Created', f"{name} as {role}")
+                            st.success(f"Created {role}: {name}" + (f" (PW: {gen_pw})" if not password else ""))
+                            st.rerun()
+        
+        users = load_data(f"users_{school_name}.json", [])
+        st.markdown("#### Current Staff")
+        
+        for i, u in enumerate(users):
+            role_icon = "👑" if u['role'] == 'admin' else "👨‍🏫" if u['role'] == 'teacher' else "📚"
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+            with col1:
+                st.write(f"{role_icon} **{u['name']}** - {u['role'].upper()}")
+            with col2:
+                st.write(f"📧 {u.get('email', '')}")
+            with col3:
+                st.write(f"ID: {u.get('staff_id', '')}")
+            with col4:
+                # Double-click to promote to admin
+                if is_admin() and u['email'] != st.session_state.user['email'] and u['role'] != 'admin':
+                    if st.button("👑 Promote", key=f"promote_{i}"):
+                        u['role'] = 'admin'
+                        save_data(f"users_{school_name}.json", users)
+                        add_audit_entry('Staff Promoted', f"{u['name']} promoted to admin")
+                        st.success(f"{u['name']} is now admin!")
+                        st.rerun()
+            with col5:
+                if is_admin() and u['email'] != st.session_state.user['email']:
+                    admin_count = len([x for x in users if x['role'] == 'admin'])
+                    if u['role'] != 'admin' or admin_count > 1:
+                        if st.button("🗑️", key=f"del_staff_{i}"):
+                            add_audit_entry('Staff Removed', f"{u['name']}")
+                            users.pop(i)
+                            save_data(f"users_{school_name}.json", users)
+                            st.rerun()
+            st.divider()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ============== MAIN ==============
+def main():
+    if st.session_state.page == 'startup':
+        startup_page()
+    elif st.session_state.page == 'dashboard':
+        dashboard_page()
+
+if __name__ == "__main__":
+    main()
