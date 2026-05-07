@@ -1,39 +1,8 @@
-# requirements.txt - SRMS - School Resource Management System by WeGEM
-
-# Core Web Framework
 streamlit>=1.28.0
-
-# Data Processing
 pandas>=2.0.0
 openpyxl>=3.1.0
-
-# Security & Authentication
 bcrypt>=4.0.0
-
-# Visualization & Charts
 plotly>=5.17.0
-
-# QR Code Generation
 qrcode>=7.4.0
 pillow>=10.0.0
-
-# Document Generation
 python-docx>=0.8.11
-
-# Database (built-in with Python, no extra install needed)
-# sqlite3 - Included in Python standard library
-
-# Standard Library (already included in Python)
-# hashlib
-# json
-# datetime
-# pathlib
-# random
-# string
-# base64
-# io
-# os
-# html
-# re
-# typing
-# contextlib
