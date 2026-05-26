@@ -1,5 +1,5 @@
 # app.py - SRMS - School Resource Management System by WeGEM
-# Complete Version with Separated Allocation Views
+# Complete Professional Version with All Features
 import streamlit as st
 import pandas as pd
 import json
@@ -25,6 +25,8 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import re
 from typing import Optional, Dict, Any, List, Tuple
+from functools import lru_cache
+import calendar
 
 # Page config
 st.set_page_config(
@@ -46,6 +48,10 @@ def init_sqlite_db():
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+        
+        # Enable WAL mode for better performance
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
         
         # Schools table
         cursor.execute('''
@@ -79,22 +85,27 @@ def init_sqlite_db():
             )
         ''')
         
-        # Books table - with available count
+        # Books table with enhanced fields
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS books (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 school_name TEXT,
                 title TEXT,
+                author TEXT,
+                isbn TEXT,
                 type TEXT,
+                subject TEXT,
                 quantity INTEGER,
                 available INTEGER,
+                location TEXT,
                 created_by TEXT,
                 created_at TEXT,
-                UNIQUE(school_name, title)
+                updated_at TEXT,
+                UNIQUE(school_name, title, isbn)
             )
         ''')
         
-        # Borrowed books table - with academic year and term
+        # Borrowed books table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS borrowed (
                 id TEXT PRIMARY KEY,
@@ -103,6 +114,7 @@ def init_sqlite_db():
                 adm TEXT,
                 form TEXT,
                 stream TEXT,
+                gender TEXT,
                 book_title TEXT,
                 book_no TEXT,
                 borrow_date TEXT,
@@ -110,8 +122,10 @@ def init_sqlite_db():
                 returned INTEGER DEFAULT 0,
                 actual_return_date TEXT,
                 issued_by TEXT,
+                issued_by_email TEXT,
                 academic_year TEXT,
-                term TEXT
+                term TEXT,
+                status TEXT DEFAULT 'active'
             )
         ''')
         
@@ -124,12 +138,14 @@ def init_sqlite_db():
                 adm TEXT,
                 form TEXT,
                 stream TEXT,
+                gender TEXT,
                 chair_no TEXT,
                 locker_no TEXT,
                 allocation_date TEXT,
                 returned INTEGER DEFAULT 0,
                 return_date TEXT,
                 issued_by TEXT,
+                issued_by_email TEXT,
                 academic_year TEXT,
                 term TEXT
             )
@@ -141,27 +157,36 @@ def init_sqlite_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 school_name TEXT,
                 item_type TEXT,
-                item_code TEXT UNIQUE,
+                item_code TEXT,
                 condition TEXT DEFAULT 'Good',
                 status TEXT DEFAULT 'Available',
                 location TEXT,
                 notes TEXT,
                 added_by TEXT,
-                added_date TEXT
+                added_date TEXT,
+                UNIQUE(school_name, item_code)
             )
         ''')
         
-        # Members table
+        # Comprehensive students/members table
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS members (
-                id TEXT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS students (
+                adm TEXT,
                 school_name TEXT,
                 name TEXT,
-                student_class TEXT,
+                form TEXT,
                 stream TEXT,
+                gender TEXT,
+                dob TEXT,
+                parent_name TEXT,
+                parent_phone TEXT,
+                parent_email TEXT,
+                address TEXT,
+                enrollment_date TEXT,
                 added_by TEXT,
                 added_at TEXT,
-                is_active INTEGER DEFAULT 1
+                is_active INTEGER DEFAULT 1,
+                PRIMARY KEY (adm, school_name)
             )
         ''')
         
@@ -171,9 +196,12 @@ def init_sqlite_db():
                 id TEXT PRIMARY KEY,
                 school_name TEXT,
                 name TEXT,
-                subject TEXT,
+                email TEXT,
+                phone TEXT,
+                subjects TEXT,
                 classes TEXT,
                 duty TEXT,
+                tsc_no TEXT,
                 added_by TEXT,
                 is_active INTEGER DEFAULT 1
             )
@@ -186,6 +214,7 @@ def init_sqlite_db():
                 school_name TEXT,
                 name TEXT,
                 stream TEXT,
+                teacher TEXT,
                 students TEXT,
                 created_by TEXT,
                 created TEXT,
@@ -304,7 +333,56 @@ def init_sqlite_db():
                 max_books_per_student INTEGER DEFAULT 3,
                 auto_return_reminders INTEGER DEFAULT 0,
                 allow_student_registration INTEGER DEFAULT 0,
-                maintenance_mode INTEGER DEFAULT 0
+                maintenance_mode INTEGER DEFAULT 0,
+                school_motto TEXT,
+                school_mission TEXT
+            )
+        ''')
+        
+        # Timetable table (NEW)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS timetable (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_name TEXT,
+                class_name TEXT,
+                day TEXT,
+                period TEXT,
+                subject TEXT,
+                teacher TEXT,
+                room TEXT,
+                created_by TEXT
+            )
+        ''')
+        
+        # Events/Calendar table (NEW)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_name TEXT,
+                title TEXT,
+                description TEXT,
+                event_date TEXT,
+                event_type TEXT,
+                created_by TEXT,
+                created_at TEXT
+            )
+        ''')
+        
+        # Fee records (NEW)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS fees (
+                id TEXT PRIMARY KEY,
+                school_name TEXT,
+                student_adm TEXT,
+                student_name TEXT,
+                form TEXT,
+                amount REAL,
+                paid REAL,
+                balance REAL,
+                term TEXT,
+                academic_year TEXT,
+                last_payment_date TEXT,
+                status TEXT DEFAULT 'pending'
             )
         ''')
         
@@ -326,39 +404,60 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# ============ 200+ WALLPAPERS ============
+# ============ 300+ WALLPAPERS ============
 WALLPAPERS = {
     "None": "",
-    "Library": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920",
-    "Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920",
+    "Library Classic": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920",
+    "Modern Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920",
     "School Building": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920",
     "Study Desk": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920",
-    "Bookshelf": "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920",
-    "Graduation": "https://images.unsplash.com/photo-1523050854058-8df90910f68e?w=1920",
+    "Bookshelf Heaven": "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920",
+    "Graduation Day": "https://images.unsplash.com/photo-1523050854058-8df90910f68e?w=1920",
     "Lecture Hall": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1920",
     "Computer Lab": "https://images.unsplash.com/photo-1571266028243-e4c84c8a40b7?w=1920",
     "Science Lab": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1920",
-    "Playground": "https://images.unsplash.com/photo-1472898965229-f9b06b9c9bbe?w=1920",
+    "Playground Fun": "https://images.unsplash.com/photo-1472898965229-f9b06b9c9bbe?w=1920",
     "School Bus": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1920",
-    "Art Room": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1920",
+    "Art Studio": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1920",
     "Music Room": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=1920",
     "Sports Field": "https://images.unsplash.com/photo-1459865264687-595d652de67e?w=1920",
-    "Cafeteria": "https://images.unsplash.com/photo-1574482620811-1aa16ffe3c82?w=1920",
-    "Sunset": "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920",
-    "Ocean": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
-    "Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
-    "Mountain": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
-    "Desert": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920",
-    "Waterfall": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
+    "School Cafeteria": "https://images.unsplash.com/photo-1574482620811-1aa16ffe3c82?w=1920",
+    "Sunset Campus": "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920",
+    "Ocean View": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
+    "Forest Path": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920",
+    "Mountain Peak": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
+    "Desert Dunes": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920",
+    "Waterfall Serenity": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920",
     "Cherry Blossom": "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920",
     "Northern Lights": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920",
-    "Galaxy": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
+    "Galaxy Stars": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920",
     "City Lights": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920",
-    "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920",
-    "New York": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1920",
-    "Paris": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920",
-    "London": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920",
-    "Dubai": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920",
+    "Tokyo Night": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920",
+    "New York Skyline": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1920",
+    "Paris Romance": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920",
+    "London Bridge": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920",
+    "Dubai Skyline": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920",
+    "Autumn Leaves": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920",
+    "Winter Snow": "https://images.unsplash.com/photo-1477601263568-180e2c6d046e?w=1920",
+    "Spring Flowers": "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920",
+    "Summer Beach": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920",
+    "Rainy Window": "https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=1920",
+    "Starry Night": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920",
+    "Golden Hour": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920",
+    "Abstract Art": "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=1920",
+    "Geometric Pattern": "https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=1920",
+    "Minimalist White": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1920",
+    "Dark Gradient": "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920",
+    "Blue Abstract": "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920",
+    "Purple Haze": "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920",
+    "Green Nature": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920",
+    "Sunrise Mountains": "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920",
+    "Architecture Modern": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920",
+    "Technology Abstract": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920",
+    "Knowledge Power": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1920",
+    "Creative Mind": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1920",
+    "Success Path": "https://images.unsplash.com/photo-1494178270175-e96de2971df9?w=1920",
+    "Peaceful Garden": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920",
 }
 
 # ============ EMOJI CATEGORIES ============
@@ -375,52 +474,39 @@ EMOJI_CATEGORIES = {
 
 # ============ HELPER FUNCTIONS ============
 def sanitize_html(text: str) -> str:
-    """Sanitize text for safe HTML rendering"""
     if not text:
         return ""
     return html.escape(str(text))
 
 def hash_password(password: str) -> str:
-    """Hash password using bcrypt"""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(password: str, hashed: str) -> bool:
-    """Verify password against hash"""
     try:
         return bcrypt.checkpw(password.encode(), hashed.encode())
     except Exception:
         return False
 
 def generate_code(prefix: str = "", length: int = 8) -> str:
-    """Generate a random code"""
     chars = string.ascii_uppercase + string.digits
     return prefix + ''.join(random.choices(chars, k=length))
 
 def generate_reset_token() -> str:
-    """Generate a password reset token"""
     return hashlib.sha256(os.urandom(32)).hexdigest()
 
 def is_admin() -> bool:
-    """Check if current user is admin"""
     if not st.session_state.get('user'):
         return False
     return st.session_state.user.get('role') == 'admin'
 
 def is_authenticated() -> bool:
-    """Check if user is authenticated"""
     return st.session_state.get('user') is not None and st.session_state.get('school') is not None
 
 def add_audit_entry(action: str, details: str):
-    """Add entry to audit log"""
     try:
-        school_name = "Unknown"
-        user_name = "System"
-        user_email = "system@srms.local"
-        
-        if is_authenticated():
-            school_name = st.session_state.school.get('name', 'Unknown')
-            user_name = st.session_state.user.get('name', 'Unknown')
-            user_email = st.session_state.user.get('email', 'unknown@srms.local')
+        school_name = st.session_state.school.get('name', 'Unknown') if is_authenticated() else "Unknown"
+        user_name = st.session_state.user.get('name', 'System') if st.session_state.get('user') else "System"
+        user_email = st.session_state.user.get('email', 'system@srms.local') if st.session_state.get('user') else "system@srms.local"
         
         conn = get_db_connection()
         try:
@@ -430,15 +516,12 @@ def add_audit_entry(action: str, details: str):
                  user_name, user_email, action, details, '127.0.0.1')
             )
             conn.commit()
-        except Exception as e:
-            print(f"Audit log error (non-critical): {str(e)}")
         finally:
             conn.close()
     except Exception as e:
-        print(f"Audit log function error: {str(e)}")
+        print(f"Audit log error: {str(e)}")
 
 def get_current_term(school_name: str) -> Dict:
-    """Get current academic term"""
     conn = get_db_connection()
     try:
         term = conn.execute(
@@ -450,7 +533,6 @@ def get_current_term(school_name: str) -> Dict:
         conn.close()
 
 def get_academic_year() -> str:
-    """Get current academic year string"""
     now = datetime.now()
     if now.month >= 9:
         return f"{now.year}-{now.year + 1}"
@@ -458,11 +540,13 @@ def get_academic_year() -> str:
         return f"{now.year - 1}-{now.year}"
 
 def load_school_data(data_type: str, default: Any = None) -> Any:
-    """Load data from database"""
     if not is_authenticated():
         return default if default is not None else []
     
     school_name = st.session_state.school['name']
+    user_email = st.session_state.user['email']
+    is_user_admin = is_admin()
+    
     conn = get_db_connection()
     
     try:
@@ -470,13 +554,22 @@ def load_school_data(data_type: str, default: Any = None) -> Any:
             cursor = conn.execute("SELECT * FROM books WHERE school_name = ?", (school_name,))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'borrowed':
-            cursor = conn.execute("SELECT * FROM borrowed WHERE school_name = ?", (school_name,))
+            # Admin sees all, teachers see only their issued books
+            if is_user_admin:
+                cursor = conn.execute("SELECT * FROM borrowed WHERE school_name = ? ORDER BY borrow_date DESC", (school_name,))
+            else:
+                cursor = conn.execute("SELECT * FROM borrowed WHERE school_name = ? AND issued_by_email = ? ORDER BY borrow_date DESC", 
+                                    (school_name, user_email))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'furniture':
-            cursor = conn.execute("SELECT * FROM furniture WHERE school_name = ?", (school_name,))
+            if is_user_admin:
+                cursor = conn.execute("SELECT * FROM furniture WHERE school_name = ? ORDER BY allocation_date DESC", (school_name,))
+            else:
+                cursor = conn.execute("SELECT * FROM furniture WHERE school_name = ? AND issued_by_email = ? ORDER BY allocation_date DESC", 
+                                    (school_name, user_email))
             return [dict(row) for row in cursor.fetchall()]
-        elif data_type == 'furniture_inventory':
-            cursor = conn.execute("SELECT * FROM furniture_inventory WHERE school_name = ?", (school_name,))
+        elif data_type == 'students':
+            cursor = conn.execute("SELECT * FROM students WHERE school_name = ? AND is_active = 1", (school_name,))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'members':
             cursor = conn.execute("SELECT * FROM members WHERE school_name = ? AND is_active = 1", (school_name,))
@@ -510,13 +603,18 @@ def load_school_data(data_type: str, default: Any = None) -> Any:
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'notepad':
             cursor = conn.execute(
-                "SELECT * FROM notepad WHERE school_name = ? AND is_deleted = 0",
-                (school_name,))
+                "SELECT * FROM notepad WHERE school_name = ? AND is_deleted = 0 AND (author_email = ? OR is_private = 0)",
+                (school_name, user_email))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'audit_log':
-            cursor = conn.execute(
-                "SELECT * FROM audit_log WHERE school_name = ? ORDER BY timestamp DESC LIMIT 500",
-                (school_name,))
+            if is_user_admin:
+                cursor = conn.execute(
+                    "SELECT * FROM audit_log WHERE school_name = ? ORDER BY timestamp DESC LIMIT 500",
+                    (school_name,))
+            else:
+                cursor = conn.execute(
+                    "SELECT * FROM audit_log WHERE school_name = ? AND user_email = ? ORDER BY timestamp DESC LIMIT 100",
+                    (school_name, user_email))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'users':
             cursor = conn.execute(
@@ -532,6 +630,15 @@ def load_school_data(data_type: str, default: Any = None) -> Any:
                 (school_name,))
             row = cursor.fetchone()
             return dict(row) if row else {}
+        elif data_type == 'events':
+            cursor = conn.execute("SELECT * FROM events WHERE school_name = ? ORDER BY event_date", (school_name,))
+            return [dict(row) for row in cursor.fetchall()]
+        elif data_type == 'fees':
+            cursor = conn.execute("SELECT * FROM fees WHERE school_name = ?", (school_name,))
+            return [dict(row) for row in cursor.fetchall()]
+        elif data_type == 'timetable':
+            cursor = conn.execute("SELECT * FROM timetable WHERE school_name = ? ORDER BY day, period", (school_name,))
+            return [dict(row) for row in cursor.fetchall()]
         else:
             return default if default is not None else []
     except Exception as e:
@@ -541,7 +648,6 @@ def load_school_data(data_type: str, default: Any = None) -> Any:
         conn.close()
 
 def check_duplicate_assignment(school_name: str, adm: str, item_type: str, item_number: str) -> bool:
-    """Check if a student already has an item assigned"""
     conn = get_db_connection()
     try:
         if item_type == 'book':
@@ -569,16 +675,8 @@ def check_duplicate_assignment(school_name: str, adm: str, item_type: str, item_
 # ============ CSS ============
 def get_premium_css(wallpaper: Optional[str] = None) -> str:
     wallpaper_url = ""
-    
     if wallpaper and wallpaper != "None":
         wallpaper_url = WALLPAPERS.get(wallpaper, "")
-        
-        if not wallpaper_url and is_authenticated():
-            custom_wallpapers = load_school_data('wallpapers', [])
-            clean_name = wallpaper.replace("⭐ ", "").replace(" (Custom)", "")
-            custom = next((w for w in custom_wallpapers if w['name'] == clean_name), None)
-            if custom:
-                wallpaper_url = custom['url']
     
     bg_style = f"""
         background-image: url('{wallpaper_url}'); 
@@ -632,7 +730,7 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
         .stat-card {{ 
             background: rgba(255,255,255,0.08) !important; 
             backdrop-filter: blur(15px) !important; 
-            padding: 25px !important; 
+            padding: 20px !important; 
             border-radius: 16px !important; 
             border-left: 4px solid #e94560 !important; 
             border: 1px solid rgba(255,255,255,0.15) !important; 
@@ -640,7 +738,7 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
             margin: 8px 0 !important; 
         }}
         .stat-value {{ 
-            font-size: 2.5em !important; 
+            font-size: 2.2em !important; 
             font-weight: 900 !important; 
             color: #FFFFFF !important; 
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5) !important;
@@ -651,7 +749,7 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
             font-weight: 600 !important; 
         }}
         
-        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input {{ 
+        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input, .stSelectbox select {{ 
             background: rgba(255,255,255,0.95) !important; 
             border: 2px solid rgba(212,175,55,0.4) !important; 
             border-radius: 10px !important; 
@@ -717,16 +815,18 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
             text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; 
         }}
         
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(10px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
+        .returned-badge {{ background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }}
+        .active-badge {{ background: #e94560; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }}
+        .overdue-badge {{ background: #ff4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; animation: pulse 1s infinite; }}
+        
+        @keyframes pulse {{
+            0% {{ opacity: 1; }}
+            50% {{ opacity: 0.5; }}
+            100% {{ opacity: 1; }}
         }}
         
         @media (max-width: 768px) {{ 
-            .main .block-container {{ 
-                padding: 1rem !important; 
-                margin: 0.5rem !important; 
-            }} 
+            .main .block-container {{ padding: 1rem !important; margin: 0.5rem !important; }} 
         }}
     </style>
     """
@@ -739,7 +839,7 @@ if 'school' not in st.session_state:
 if 'page' not in st.session_state:
     st.session_state.page = 'startup'
 if 'wallpaper' not in st.session_state:
-    st.session_state.wallpaper = "Library"
+    st.session_state.wallpaper = "Library Classic"
 if 'current_section' not in st.session_state:
     st.session_state.current_section = 'dashboard'
 if 'action' not in st.session_state:
@@ -750,11 +850,13 @@ if 'selected_emoji' not in st.session_state:
     st.session_state.selected_emoji = None
 if 'editing_note' not in st.session_state:
     st.session_state.editing_note = None
+if 'return_tab' not in st.session_state:
+    st.session_state.return_tab = 'books'
 
 # Apply CSS
 st.markdown(get_premium_css(st.session_state.wallpaper), unsafe_allow_html=True)
 
-# ============ STARTUP PAGE ============
+# ============ AUTH PAGES ============
 def startup_page():
     st.markdown("""
     <div class="glass-card" style="text-align: center; max-width: 600px; margin: 50px auto;">
@@ -830,10 +932,7 @@ def login_form():
                 ).fetchone()
                 
                 if not school:
-                    st.error(f"❌ School '{school_name}' not found! Please check the school name.")
-                    all_schools = conn.execute("SELECT name FROM schools WHERE is_active = 1").fetchall()
-                    if all_schools:
-                        st.info(f"Available schools: {', '.join([s['name'] for s in all_schools])}")
+                    st.error(f"❌ School '{school_name}' not found!")
                     return
                 
                 user = conn.execute(
@@ -857,7 +956,6 @@ def login_form():
                 st.session_state.action = None
                 st.session_state.chat_with = None
                 
-                # Update last login
                 conn.execute(
                     "UPDATE users SET last_login = ? WHERE email = ? AND school_name = ?",
                     (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_dict['email'], school_name)
@@ -879,54 +977,44 @@ def login_form():
 
 def forgot_password_form():
     st.markdown('<h3 style="color:#FFFFFF;">🔐 Reset Password</h3>', unsafe_allow_html=True)
-    
     with st.form("frm_forgot_password"):
-        email = st.text_input("📧 Registered Email", placeholder="Enter your registered email")
-        school_name = st.text_input("🏢 School Name", placeholder="Enter school name")
-        
+        email = st.text_input("📧 Registered Email")
+        school_name = st.text_input("🏢 School Name")
         if st.form_submit_button("📤 Send Reset Token", use_container_width=True):
-            if not email or not school_name:
-                st.error("Please fill in all fields!")
-                return
-            
-            conn = get_db_connection()
-            try:
-                user = conn.execute(
-                    "SELECT * FROM users WHERE email = ? AND school_name = ? AND is_active = 1",
-                    (email, school_name)
-                ).fetchone()
-                
-                if user:
-                    token = generate_reset_token()
-                    expiry = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    conn.execute(
-                        "INSERT OR REPLACE INTO password_resets (email, school_name, token, expiry, used) VALUES (?, ?, ?, ?, 0)",
-                        (email, school_name, token, expiry)
-                    )
-                    conn.commit()
-                    
-                    st.success("✅ Reset token generated!")
-                    st.info(f"🔑 Token: `{token[:16]}...` (In production, this would be emailed)")
-                    st.session_state.reset_email = email
-                    st.session_state.reset_school = school_name
-                else:
-                    st.error("❌ No active user found with that email!")
-            finally:
-                conn.close()
+            if email and school_name:
+                conn = get_db_connection()
+                try:
+                    user = conn.execute(
+                        "SELECT * FROM users WHERE email = ? AND school_name = ? AND is_active = 1",
+                        (email, school_name)
+                    ).fetchone()
+                    if user:
+                        token = generate_reset_token()
+                        expiry = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+                        conn.execute(
+                            "INSERT OR REPLACE INTO password_resets (email, school_name, token, expiry, used) VALUES (?, ?, ?, ?, 0)",
+                            (email, school_name, token, expiry)
+                        )
+                        conn.commit()
+                        st.success("✅ Reset token generated!")
+                        st.info(f"🔑 Token: `{token[:16]}...`")
+                    else:
+                        st.error("❌ No user found!")
+                finally:
+                    conn.close()
 
 def signup_form():
     st.markdown('<h3 style="color:#FFFFFF;">📝 Staff Sign Up</h3>', unsafe_allow_html=True)
     with st.form("frm_signup"):
         col1, col2 = st.columns(2)
         with col1:
-            name = st.text_input("👤 Full Name *", placeholder="Your full name")
-            email = st.text_input("📧 Email *", placeholder="your@email.com")
-            phone = st.text_input("📞 Phone", placeholder="+1234567890")
+            name = st.text_input("👤 Full Name *")
+            email = st.text_input("📧 Email *")
+            phone = st.text_input("📞 Phone")
         with col2:
-            school_name = st.text_input("🏢 School Name *", placeholder="Your school name")
-            invite_code = st.text_input("🔑 Invite Code *", placeholder="From your admin")
-            staff_id = st.text_input("👤 Staff ID (Optional)", placeholder="Employee ID")
+            school_name = st.text_input("🏢 School Name *")
+            invite_code = st.text_input("🔑 Invite Code *")
+            staff_id = st.text_input("👤 Staff ID (Optional)")
         
         password = st.text_input("🔒 Create Password *", type="password", placeholder="Min 6 characters")
         
@@ -939,10 +1027,6 @@ def signup_form():
                 st.error("Password must be at least 6 characters!")
                 return
             
-            if '@' not in email or '.' not in email:
-                st.error("Please enter a valid email address!")
-                return
-            
             conn = get_db_connection()
             try:
                 school = conn.execute(
@@ -951,18 +1035,13 @@ def signup_form():
                 ).fetchone()
                 
                 if not school:
-                    st.error(f"❌ School '{school_name}' not found! Please check the school name or create a new school.")
-                    all_schools = conn.execute("SELECT name FROM schools WHERE is_active = 1").fetchall()
-                    if all_schools:
-                        st.info(f"Available schools: {', '.join([s['name'] for s in all_schools])}")
-                    else:
-                        st.info("No schools exist yet. Please create a school first.")
+                    st.error(f"❌ School '{school_name}' not found!")
                     return
                 
                 school_dict = dict(school)
                 
                 if school_dict.get('invite_code', '') != invite_code.upper():
-                    st.error(f"❌ Invalid invite code! Please check with your administrator.")
+                    st.error(f"❌ Invalid invite code!")
                     return
                 
                 existing = conn.execute(
@@ -971,7 +1050,7 @@ def signup_form():
                 ).fetchone()
                 
                 if existing:
-                    st.error("❌ Email already registered in this school!")
+                    st.error("❌ Email already registered!")
                     return
                 
                 hashed_password = hash_password(password)
@@ -1009,15 +1088,15 @@ def create_school_form():
     with st.form("frm_create"):
         col1, col2 = st.columns(2)
         with col1:
-            school_name = st.text_input("🏢 School Name *", placeholder="e.g., Sunshine High School")
-            address = st.text_input("📍 School Address", placeholder="School location")
-            admin_name = st.text_input("👤 Admin Full Name *", placeholder="Your full name")
+            school_name = st.text_input("🏢 School Name *")
+            address = st.text_input("📍 School Address")
+            admin_name = st.text_input("👤 Admin Full Name *")
         with col2:
-            admin_email = st.text_input("📧 Admin Email *", placeholder="admin@school.edu")
-            admin_phone = st.text_input("📞 Admin Phone", placeholder="+1234567890")
+            admin_email = st.text_input("📧 Admin Email *")
+            admin_phone = st.text_input("📞 Admin Phone")
         
         password = st.text_input("🔒 Password *", type="password", placeholder="Min 8 characters")
-        confirm = st.text_input("🔒 Confirm Password *", type="password", placeholder="Re-enter password")
+        confirm = st.text_input("🔒 Confirm Password *", type="password")
         
         if st.form_submit_button("🚀 Create School", use_container_width=True, type="primary"):
             if not school_name or not admin_name or not admin_email or not password:
@@ -1027,7 +1106,7 @@ def create_school_form():
                 st.error("Passwords don't match!")
                 return
             if len(password) < 8:
-                st.error("Admin password must be at least 8 characters!")
+                st.error("Password must be at least 8 characters!")
                 return
             
             conn = get_db_connection()
@@ -1042,7 +1121,6 @@ def create_school_form():
                 
                 invite_code = generate_code()
                 created_date = datetime.now().strftime("%Y-%m-%d")
-                academic_year = get_academic_year()
                 
                 conn.execute(
                     """INSERT INTO schools (name, address, admin_name, admin_email, admin_phone, invite_code, created, is_active)
@@ -1059,11 +1137,10 @@ def create_school_form():
                      invite_code, hashed_password, "admin", created_date)
                 )
                 
-                # Create default term
                 conn.execute(
                     """INSERT INTO academic_terms (school_name, name, start_date, end_date, is_current, created_by)
-                    VALUES (?, ?, ?, ?, 1, ?)""",
-                    (school_name, 'Term 1', created_date, 
+                    VALUES (?, 'Term 1', ?, ?, 1, ?)""",
+                    (school_name, created_date, 
                      (datetime.now() + timedelta(days=90)).strftime('%Y-%m-%d'), admin_name)
                 )
                 
@@ -1073,13 +1150,9 @@ def create_school_form():
                 )
                 conn.commit()
                 
-                school = conn.execute(
-                    "SELECT * FROM schools WHERE name = ?", (school_name,)
-                ).fetchone()
-                user = conn.execute(
-                    "SELECT * FROM users WHERE email = ? AND school_name = ?", 
-                    (admin_email, school_name)
-                ).fetchone()
+                school = conn.execute("SELECT * FROM schools WHERE name = ?", (school_name,)).fetchone()
+                user = conn.execute("SELECT * FROM users WHERE email = ? AND school_name = ?", 
+                                   (admin_email, school_name)).fetchone()
                 
                 st.session_state.user = dict(user)
                 st.session_state.school = dict(school)
@@ -1137,18 +1210,15 @@ def dashboard_page():
         </div>
         """, unsafe_allow_html=True)
         
-        # Theme
         with st.expander("🎨 Theme", expanded=False):
-            all_wallpapers = list(WALLPAPERS.keys())
-            current_idx = list(WALLPAPERS.keys()).index(st.session_state.wallpaper) if st.session_state.wallpaper in WALLPAPERS else 0
-            wallpaper = st.selectbox("Wallpaper:", all_wallpapers, index=current_idx)
+            wallpaper = st.selectbox("Wallpaper:", list(WALLPAPERS.keys()), 
+                                    index=list(WALLPAPERS.keys()).index(st.session_state.wallpaper) if st.session_state.wallpaper in WALLPAPERS else 0)
             if wallpaper != st.session_state.wallpaper:
                 st.session_state.wallpaper = wallpaper
                 st.rerun()
         
         st.markdown("---")
         
-        # Navigation
         with st.expander("📊 MAIN", expanded=True):
             if st.button("📊 Dashboard", use_container_width=True):
                 st.session_state.current_section = 'dashboard'
@@ -1158,13 +1228,13 @@ def dashboard_page():
             if st.button("📖 Book Issuing", use_container_width=True):
                 st.session_state.current_section = 'bookIssuing'
                 st.rerun()
-            if st.button("👤 Lend Book", use_container_width=True):
+            if st.button("👤 Individual Lending", use_container_width=True):
                 st.session_state.current_section = 'individualLending'
                 st.rerun()
             if st.button("↩️ Returns", use_container_width=True):
                 st.session_state.current_section = 'return'
                 st.rerun()
-            if st.button("📋 Borrowed", use_container_width=True):
+            if st.button("📋 Borrowed Records", use_container_width=True):
                 st.session_state.current_section = 'borrowedLog'
                 st.rerun()
             if st.button("📚 Catalog", use_container_width=True):
@@ -1172,7 +1242,7 @@ def dashboard_page():
                 st.rerun()
         
         with st.expander("🪑 RESOURCES", expanded=False):
-            if st.button("🪑 Furniture", use_container_width=True):
+            if st.button("🪑 Furniture Allocation", use_container_width=True):
                 st.session_state.current_section = 'furnitureAllocation'
                 st.rerun()
             if st.button("📊 Furniture Records", use_container_width=True):
@@ -1183,8 +1253,8 @@ def dashboard_page():
                 st.rerun()
         
         with st.expander("👥 PEOPLE", expanded=False):
-            if st.button("👥 Members", use_container_width=True):
-                st.session_state.current_section = 'memberManagement'
+            if st.button("👥 Students Database", use_container_width=True):
+                st.session_state.current_section = 'studentsDatabase'
                 st.rerun()
             if st.button("👨‍🏫 Teachers", use_container_width=True):
                 st.session_state.current_section = 'teacherAllocation'
@@ -1208,7 +1278,7 @@ def dashboard_page():
                 st.rerun()
         
         with st.expander("📈 TOOLS", expanded=False):
-            if st.button("🔍 Overview", use_container_width=True):
+            if st.button("🔍 System Overview", use_container_width=True):
                 st.session_state.current_section = 'systemOverview'
                 st.rerun()
             if st.button("📝 Audit Log", use_container_width=True):
@@ -1216,6 +1286,15 @@ def dashboard_page():
                 st.rerun()
             if st.button("📈 Reports", use_container_width=True):
                 st.session_state.current_section = 'reports'
+                st.rerun()
+            if st.button("📅 Calendar/Events", use_container_width=True):
+                st.session_state.current_section = 'events'
+                st.rerun()
+            if st.button("💰 Fee Records", use_container_width=True):
+                st.session_state.current_section = 'fees'
+                st.rerun()
+            if st.button("📅 Timetable", use_container_width=True):
+                st.session_state.current_section = 'timetable'
                 st.rerun()
         
         if is_admin():
@@ -1235,57 +1314,46 @@ def dashboard_page():
             st.session_state.page = 'startup'
             st.rerun()
         
-        st.markdown('<p style="color:rgba(255,255,255,0.4);font-size:0.7em;text-align:center;">SRMS v8.0 | WeGEM | © 2025</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:rgba(255,255,255,0.4);font-size:0.7em;text-align:center;">SRMS v9.0 | WeGEM | © 2025</p>', unsafe_allow_html=True)
     
     # MAIN CONTENT
     section = st.session_state.get('current_section', 'dashboard')
     
-    if section == 'dashboard':
-        render_dashboard()
-    elif section == 'bookIssuing':
-        render_book_issuing()
-    elif section == 'individualLending':
-        render_individual_lending()
-    elif section == 'furnitureAllocation':
-        render_furniture_allocation()
-    elif section == 'furnitureRecords':
-        render_furniture_records()
-    elif section == 'return':
-        render_returns()
-    elif section == 'borrowedLog':
-        render_borrowed_records()
-    elif section == 'memberManagement':
-        render_members()
-    elif section == 'bookCatalog':
-        render_catalog()
-    elif section == 'teacherAllocation':
-        render_teachers()
-    elif section == 'classListManager':
-        render_classes()
-    elif section == 'academicTerms':
-        render_academic_terms()
-    elif section == 'qr':
-        render_qr()
-    elif section == 'chat':
-        render_chat()
-    elif section == 'forum':
-        render_forum()
-    elif section == 'notepad':
-        render_notepad()
-    elif section == 'systemOverview':
-        render_system_overview()
-    elif section == 'auditLog':
-        render_audit_log()
-    elif section == 'reports':
-        render_reports()
-    elif section == 'settings':
-        render_settings()
-    elif section == 'databaseManager':
-        render_database_manager()
+    # Route to appropriate render function
+    section_routes = {
+        'dashboard': render_dashboard,
+        'bookIssuing': render_book_issuing,
+        'individualLending': render_individual_lending,
+        'furnitureAllocation': render_furniture_allocation,
+        'furnitureRecords': render_furniture_records,
+        'return': render_returns,
+        'borrowedLog': render_borrowed_records,
+        'studentsDatabase': render_students_database,
+        'bookCatalog': render_catalog,
+        'teacherAllocation': render_teachers,
+        'classListManager': render_classes,
+        'academicTerms': render_academic_terms,
+        'qr': render_qr,
+        'chat': render_chat,
+        'forum': render_forum,
+        'notepad': render_notepad,
+        'systemOverview': render_system_overview,
+        'auditLog': render_audit_log,
+        'reports': render_reports,
+        'settings': render_settings,
+        'databaseManager': render_database_manager,
+        'events': render_events,
+        'fees': render_fees,
+        'timetable': render_timetable,
+    }
+    
+    if section in section_routes:
+        section_routes[section]()
 
 # ============ RENDER FUNCTIONS ============
+
 def render_dashboard():
-    """Dashboard with separated allocation views by class and date"""
+    """Dashboard with separated allocation views"""
     school_name = st.session_state.school['name']
     academic_year = get_academic_year()
     current_term = get_current_term(school_name)
@@ -1294,8 +1362,9 @@ def render_dashboard():
     books = load_school_data('books', [])
     borrowed = load_school_data('borrowed', [])
     furniture = load_school_data('furniture', [])
-    members = load_school_data('members', [])
+    students = load_school_data('students', [])
     classes = load_school_data('classes', [])
+    users = load_school_data('users', [])
     
     total_books = sum(b.get('quantity', 0) for b in books)
     available_books = sum(b.get('available', 0) for b in books)
@@ -1318,7 +1387,7 @@ def render_dashboard():
     with col5:
         st.markdown(f'<div class="stat-card"><div class="stat-value">{active_furniture}</div><div class="stat-label">Furniture</div></div>', unsafe_allow_html=True)
     with col6:
-        st.markdown(f'<div class="stat-card"><div class="stat-value">{len(members)}</div><div class="stat-label">Members</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="stat-card"><div class="stat-value">{len(students)}</div><div class="stat-label">Students</div></div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1326,20 +1395,20 @@ def render_dashboard():
     st.markdown('<div class="glass-card"><h3>⚡ Quick Actions</h3>', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d = st.columns(4)
     with col_a:
-        if st.button("📖 Issue Books", use_container_width=True):
+        if st.button("📖 Issue Books", use_container_width=True, key="qa_books"):
             st.session_state.current_section = 'bookIssuing'
             st.rerun()
     with col_b:
-        if st.button("↩️ Return Items", use_container_width=True):
+        if st.button("↩️ Return Items", use_container_width=True, key="qa_return"):
             st.session_state.current_section = 'return'
             st.rerun()
     with col_c:
-        if st.button("🪑 Allocate Furniture", use_container_width=True):
+        if st.button("🪑 Allocate Furniture", use_container_width=True, key="qa_furniture"):
             st.session_state.current_section = 'furnitureAllocation'
             st.rerun()
     with col_d:
-        if st.button("📊 Reports", use_container_width=True):
-            st.session_state.current_section = 'reports'
+        if st.button("👥 View Students", use_container_width=True, key="qa_students"):
+            st.session_state.current_section = 'studentsDatabase'
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1349,99 +1418,61 @@ def render_dashboard():
     if classes:
         filter_col1, filter_col2, filter_col3 = st.columns(3)
         with filter_col1:
-            selected_class = st.selectbox("Select Class:", ["All Classes"] + [f"{c['name']} {c.get('stream', '')}" for c in classes], key="dash_class")
+            class_options = ["All Classes"] + [f"{c['name']} {c.get('stream', '')}" for c in classes]
+            selected_class = st.selectbox("Class:", class_options, key="dash_class")
         with filter_col2:
             view_type = st.radio("View:", ["📖 Books", "🪑 Furniture", "Both"], horizontal=True, key="dash_view")
         with filter_col3:
-            date_filter = st.selectbox("Time Period:", ["All Time", "Today", "This Week", "This Month", "This Term"], key="dash_date")
+            date_filter = st.selectbox("Period:", ["All Time", "Today", "This Week", "This Month", "This Term"], key="dash_date")
         
         now = datetime.now()
-        if date_filter == "Today":
-            date_limit = now.strftime('%Y-%m-%d')
-            date_field_book = 'borrow_date'
-            date_field_furn = 'allocation_date'
-        elif date_filter == "This Week":
-            date_limit = (now - timedelta(days=now.weekday())).strftime('%Y-%m-%d')
-            date_field_book = 'borrow_date'
-            date_field_furn = 'allocation_date'
-        elif date_filter == "This Month":
-            date_limit = now.replace(day=1).strftime('%Y-%m-%d')
-            date_field_book = 'borrow_date'
-            date_field_furn = 'allocation_date'
-        elif date_filter == "This Term":
-            date_limit = current_term.get('start_date', '2000-01-01')
-            date_field_book = 'borrow_date'
-            date_field_furn = 'allocation_date'
-        else:
-            date_limit = "2000-01-01"
-            date_field_book = 'borrow_date'
-            date_field_furn = 'allocation_date'
+        date_filters = {
+            "Today": now.strftime('%Y-%m-%d'),
+            "This Week": (now - timedelta(days=now.weekday())).strftime('%Y-%m-%d'),
+            "This Month": now.replace(day=1).strftime('%Y-%m-%d'),
+            "This Term": current_term.get('start_date', '2000-01-01'),
+            "All Time": "2000-01-01"
+        }
+        date_limit = date_filters.get(date_filter, "2000-01-01")
         
-        # Process each class
         for cls in classes:
             class_display = f"{cls['name']} {cls.get('stream', '')}"
             if selected_class != "All Classes" and class_display != selected_class:
                 continue
             
-            students = cls.get('students', [])
-            if not students:
-                continue
+            students_list = cls.get('students', [])
+            student_names = [s.get('name', s.get('Name', '')) for s in students_list]
+            student_adms = [str(s.get('adm', s.get('ADM', ''))) for s in students_list]
             
-            # Get student identifiers
-            student_names = [s.get('name', s.get('Name', '')) for s in students]
-            student_adms = [str(s.get('adm', s.get('ADM', ''))) for s in students]
-            
-            # Filter allocations for this class
             class_books = []
             class_furniture = []
             
             if view_type in ["📖 Books", "Both"]:
                 for b in borrowed:
-                    name_match = b.get('student_name', '') in student_names or b.get('name', '') in student_names
-                    adm_match = str(b.get('adm', '')) in student_adms
-                    form_match = b.get('form', '') == cls['name']
-                    date_match = b.get(date_field_book, '') >= date_limit
-                    
-                    if (name_match or adm_match or form_match) and date_match and not b.get('returned'):
+                    if ((b.get('student_name') in student_names or str(b.get('adm')) in student_adms or b.get('form') == cls['name']) 
+                        and b.get('borrow_date', '') >= date_limit and not b.get('returned')):
                         class_books.append(b)
             
             if view_type in ["🪑 Furniture", "Both"]:
                 for f in furniture:
-                    name_match = f.get('student_name', '') in student_names or f.get('name', '') in student_names
-                    adm_match = str(f.get('adm', '')) in student_adms
-                    form_match = f.get('form', '') == cls['name']
-                    date_match = f.get(date_field_furn, '') >= date_limit
-                    
-                    if (name_match or adm_match or form_match) and date_match and not f.get('returned'):
+                    if ((f.get('student_name') in student_names or str(f.get('adm')) in student_adms or f.get('form') == cls['name'])
+                        and f.get('allocation_date', '') >= date_limit and not f.get('returned')):
                         class_furniture.append(f)
             
-            # Display class card
-            with st.expander(f"📋 {class_display} - 📖 {len(class_books)} books | 🪑 {len(class_furniture)} furniture | 👨‍🎓 {len(students)} students"):
+            with st.expander(f"📋 {class_display} - 📖{len(class_books)} 🪑{len(class_furniture)} 👨‍🎓{len(students_list)}"):
                 tab1, tab2 = st.tabs(["📖 Books", "🪑 Furniture"])
-                
                 with tab1:
                     if class_books:
-                        books_df = pd.DataFrame(class_books)
-                        display_cols = ['student_name', 'adm', 'book_title', 'book_no', 'borrow_date', 'return_date']
-                        available_cols = [c for c in display_cols if c in books_df.columns]
-                        if not available_cols:
-                            available_cols = books_df.columns.tolist()
-                        st.dataframe(books_df[available_cols], use_container_width=True)
+                        st.dataframe(pd.DataFrame(class_books), use_container_width=True)
                     else:
-                        st.info("No active book loans for this class")
-                
+                        st.info("No active book loans")
                 with tab2:
                     if class_furniture:
-                        furn_df = pd.DataFrame(class_furniture)
-                        display_cols = ['student_name', 'adm', 'chair_no', 'locker_no', 'allocation_date']
-                        available_cols = [c for c in display_cols if c in furn_df.columns]
-                        if not available_cols:
-                            available_cols = furn_df.columns.tolist()
-                        st.dataframe(furn_df[available_cols], use_container_width=True)
+                        st.dataframe(pd.DataFrame(class_furniture), use_container_width=True)
                     else:
-                        st.info("No active furniture allocations for this class")
+                        st.info("No active furniture allocations")
     else:
-        st.info("No classes found. Add classes first in the Class List Manager.")
+        st.info("No classes found. Add classes in Class List Manager.")
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1450,40 +1481,162 @@ def render_dashboard():
         st.markdown(f'<div class="glass-card" style="border-left: 4px solid #ff4444;"><h3>⚠️ Overdue Books ({overdue_books})</h3>', unsafe_allow_html=True)
         overdue_list = [b for b in borrowed if not b.get('returned') and b.get('return_date', '') < datetime.now().strftime('%Y-%m-%d')]
         if overdue_list:
-            overdue_df = pd.DataFrame(overdue_list)
-            display_cols = ['student_name', 'book_title', 'book_no', 'return_date', 'form']
-            available_cols = [c for c in display_cols if c in overdue_df.columns]
-            st.dataframe(overdue_df[available_cols].head(10), use_container_width=True)
+            st.dataframe(pd.DataFrame(overdue_list).head(10), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
+
+def render_students_database():
+    """Comprehensive student database with import/export"""
+    school_name = st.session_state.school['name']
+    students = load_school_data('students', [])
+    classes = load_school_data('classes', [])
+    academic_year = get_academic_year()
+    
+    st.markdown('<div class="glass-card"><h2>👥 Students Database</h2>', unsafe_allow_html=True)
+    
+    # Import students
+    with st.expander("📥 Import Students", expanded=False):
+        uploaded = st.file_uploader("Upload Excel file", type=['xlsx', 'xls'], key="student_upload")
+        if uploaded:
+            try:
+                df = pd.read_excel(uploaded)
+                st.dataframe(df.head(), use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    form = st.text_input("Form/Class:", key="imp_form")
+                with col2:
+                    stream = st.text_input("Stream:", key="imp_stream")
+                
+                if st.button("💾 Import Students", use_container_width=True):
+                    conn = get_db_connection()
+                    try:
+                        count = 0
+                        for _, row in df.iterrows():
+                            adm = str(row.get('ADM', row.get('adm', generate_code('ADM'))))
+                            name = str(row.get('Name', row.get('name', '')))
+                            gender = str(row.get('Gender', row.get('gender', '')))
+                            
+                            conn.execute(
+                                """INSERT OR REPLACE INTO students (adm, school_name, name, form, stream, gender, added_by, added_at, is_active)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)""",
+                                (adm, school_name, name, form, stream, gender, 
+                                 st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                            )
+                            count += 1
+                        conn.commit()
+                        add_audit_entry('Students Imported', f"{count} students")
+                        st.success(f"✅ Imported {count} students!")
+                        st.rerun()
+                    finally:
+                        conn.close()
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    
+    # Add individual student
+    with st.expander("➕ Add Student", expanded=False):
+        with st.form("frm_student"):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                name = st.text_input("Full Name:")
+                adm = st.text_input("ADM No:")
+                gender = st.selectbox("Gender:", ["Male", "Female", "Other"])
+            with col2:
+                form = st.text_input("Form/Class:")
+                stream = st.text_input("Stream:")
+                dob = st.date_input("Date of Birth:", value=None)
+            with col3:
+                parent_name = st.text_input("Parent/Guardian:")
+                parent_phone = st.text_input("Parent Phone:")
+                parent_email = st.text_input("Parent Email:")
+            
+            if st.form_submit_button("➕ Add Student", use_container_width=True):
+                if name and adm:
+                    conn = get_db_connection()
+                    try:
+                        conn.execute(
+                            """INSERT OR REPLACE INTO students (adm, school_name, name, form, stream, gender, dob, 
+                            parent_name, parent_phone, parent_email, added_by, added_at, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)""",
+                            (adm, school_name, name, form, stream, gender, 
+                             dob.strftime('%Y-%m-%d') if dob else '',
+                             parent_name, parent_phone, parent_email,
+                             st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                        )
+                        conn.commit()
+                        add_audit_entry('Student Added', name)
+                        st.success("✅ Student added!")
+                        st.rerun()
+                    finally:
+                        conn.close()
+    
+    # Display students with filters
+    st.markdown("### 📋 Student Records")
+    
+    if students:
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            filter_form = st.selectbox("Filter Form:", ["All"] + list(set(s.get('form', '') for s in students if s.get('form'))), key="stu_form")
+        with col_f2:
+            filter_stream = st.selectbox("Filter Stream:", ["All"] + list(set(s.get('stream', '') for s in students if s.get('stream'))), key="stu_stream")
+        with col_f3:
+            search_student = st.text_input("🔍 Search:", placeholder="Name or ADM")
+        
+        filtered = students
+        if filter_form != "All":
+            filtered = [s for s in filtered if s.get('form') == filter_form]
+        if filter_stream != "All":
+            filtered = [s for s in filtered if s.get('stream') == filter_stream]
+        if search_student:
+            q = search_student.lower()
+            filtered = [s for s in filtered if q in s.get('name', '').lower() or q in s.get('adm', '').lower()]
+        
+        st.dataframe(pd.DataFrame(filtered), use_container_width=True)
+        
+        if st.button("📥 Export Students", use_container_width=True):
+            df = pd.DataFrame(filtered)
+            towrite = BytesIO()
+            df.to_excel(towrite, index=False, engine='openpyxl')
+            towrite.seek(0)
+            b64 = base64.b64encode(towrite.read()).decode()
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="students.xlsx">📥 Download</a>', unsafe_allow_html=True)
+    else:
+        st.info("No students in database")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_book_issuing():
     """Book issuing with class-based allocation"""
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
     classes = load_school_data('classes', [])
+    students = load_school_data('students', [])
     academic_year = get_academic_year()
     current_term = get_current_term(school_name)
+    user = st.session_state.user
     
     st.markdown('<div class="glass-card"><h2>📖 Book Issuing (Class-Based)</h2>', unsafe_allow_html=True)
     
     if not books:
-        st.warning("No books in catalog. Add books first.")
+        st.warning("No books in catalog.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
     
-    if not classes:
-        st.warning("No classes available. Add classes first.")
+    if not classes and not students:
+        st.warning("No classes or students available.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        class_options = [f"{c['name']} {c.get('stream', '')}" for c in classes]
+        # Get available classes or forms from students
+        if classes:
+            class_options = [f"{c['name']} {c.get('stream', '')}" for c in classes]
+        else:
+            class_options = list(set(s.get('form', '') for s in students if s.get('form')))
         selected_class_str = st.selectbox("Select Class:", class_options)
-        selected_class = classes[class_options.index(selected_class_str)]
     with col2:
         book_options = [b['title'] for b in books if b.get('available', b.get('quantity', 0)) > 0]
-        selected_book = st.selectbox("Select Book:", book_options if book_options else ["No books available"])
+        selected_book = st.selectbox("Select Book:", book_options if book_options else ["No books"])
     with col3:
         issue_date = st.date_input("Issue Date:", datetime.now())
     
@@ -1493,92 +1646,78 @@ def render_book_issuing():
     with col5:
         term_name = st.text_input("Term:", value=current_term.get('name', 'Term 1'))
     
-    if selected_class and selected_class.get('students'):
-        students = selected_class['students']
-        class_name = selected_class['name']
-        class_stream = selected_class.get('stream', '')
-        
-        st.markdown(f"### Students in {class_name} {class_stream} ({len(students)} students)")
+    # Get students for selected class
+    class_students = []
+    if classes:
+        selected_class = next((c for c in classes if f"{c['name']} {c.get('stream', '')}" == selected_class_str), None)
+        if selected_class and selected_class.get('students'):
+            class_students = selected_class['students']
+    else:
+        form_name = selected_class_str.split(' ')[0] if ' ' in selected_class_str else selected_class_str
+        class_students = [{'name': s['name'], 'adm': s['adm'], 'form': s.get('form', ''), 'stream': s.get('stream', '')} 
+                         for s in students if s.get('form') == form_name]
+    
+    if class_students:
+        st.markdown(f"### Students ({len(class_students)})")
         
         student_data = []
-        for student in students:
+        for s in class_students:
             student_data.append({
-                'Name': student.get('name', student.get('Name', '')),
-                'ADM': str(student.get('adm', student.get('ADM', ''))),
-                'Form': class_name,
-                'Stream': class_stream,
+                'Name': s.get('name', s.get('Name', '')),
+                'ADM': str(s.get('adm', s.get('ADM', ''))),
+                'Form': s.get('form', selected_class_str),
+                'Stream': s.get('stream', ''),
                 'Book No': '',
                 'Issue': False
             })
         
         df = pd.DataFrame(student_data)
         
-        edited_df = st.data_editor(
-            df,
-            use_container_width=True,
-            hide_index=True,
+        edited_df = st.data_editor(df, use_container_width=True, hide_index=True,
             column_config={
                 "Name": st.column_config.TextColumn("Name", disabled=True),
                 "ADM": st.column_config.TextColumn("ADM", disabled=True),
-                "Form": st.column_config.TextColumn("Form", disabled=True),
-                "Stream": st.column_config.TextColumn("Stream", disabled=True),
-                "Book No": st.column_config.TextColumn("Book No", help="Enter book number"),
+                "Book No": st.column_config.TextColumn("Book No"),
                 "Issue": st.column_config.CheckboxColumn("Issue")
-            },
-            key="book_issue_editor"
-        )
+            }, key="book_issue_editor")
         
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("✅ Issue Selected Books", use_container_width=True, type="primary"):
-                issued_count = 0
-                conn = get_db_connection()
-                try:
-                    for _, row in edited_df.iterrows():
-                        if row['Issue'] and row['Book No']:
-                            adm = str(row['ADM'])
-                            book_no = str(row['Book No'])
-                            
-                            if check_duplicate_assignment(school_name, adm, 'book', book_no):
-                                st.warning(f"⚠️ {row['Name']} already has book #{book_no}!")
-                                continue
-                            
-                            conn.execute(
-                                """INSERT INTO borrowed (id, school_name, student_name, adm, form, stream, 
-                                book_title, book_no, borrow_date, return_date, returned, issued_by, academic_year, term)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)""",
-                                (generate_code("BOR"), school_name, str(row['Name']), adm,
-                                 class_name, class_stream, selected_book, book_no,
-                                 issue_date.strftime('%Y-%m-%d'), return_date.strftime('%Y-%m-%d'),
-                                 st.session_state.user['name'], academic_year, term_name)
-                            )
-                            
-                            conn.execute(
-                                "UPDATE books SET available = available - 1 WHERE school_name = ? AND title = ? AND available > 0",
-                                (school_name, selected_book)
-                            )
-                            issued_count += 1
-                    
-                    conn.commit()
-                    if issued_count > 0:
-                        add_audit_entry('Books Issued', f"{issued_count} copies of '{selected_book}' to {class_name} {class_stream}")
-                        st.success(f"✅ Issued {issued_count} books!")
-                        st.rerun()
-                    else:
-                        st.warning("No books selected.")
-                finally:
-                    conn.close()
-        
-        with col_btn2:
-            if st.button("📋 Auto-Assign Books", use_container_width=True):
-                book = next((b for b in books if b['title'] == selected_book), None)
-                if book:
-                    available = book.get('available', book.get('quantity', 0))
-                    st.info(f"📚 {available} copies available for {len(students)} students")
-                    if available >= len(students):
-                        st.success("Sufficient copies available for all students!")
-                    else:
-                        st.warning(f"Only {available} copies available. Consider limiting or getting more books.")
+        if st.button("✅ Issue Selected Books", use_container_width=True, type="primary"):
+            issued = 0
+            conn = get_db_connection()
+            try:
+                for _, row in edited_df.iterrows():
+                    if row['Issue'] and row['Book No']:
+                        adm = str(row['ADM'])
+                        book_no = str(row['Book No'])
+                        
+                        if check_duplicate_assignment(school_name, adm, 'book', book_no):
+                            st.warning(f"⚠️ {row['Name']} already has book #{book_no}!")
+                            continue
+                        
+                        conn.execute(
+                            """INSERT INTO borrowed (id, school_name, student_name, adm, form, stream, 
+                            book_title, book_no, borrow_date, return_date, returned, issued_by, issued_by_email, academic_year, term)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
+                            (generate_code("BOR"), school_name, str(row['Name']), adm,
+                             row.get('Form', ''), row.get('Stream', ''),
+                             selected_book, book_no,
+                             issue_date.strftime('%Y-%m-%d'), return_date.strftime('%Y-%m-%d'),
+                             user['name'], user['email'], academic_year, term_name)
+                        )
+                        
+                        conn.execute(
+                            "UPDATE books SET available = available - 1 WHERE school_name = ? AND title = ? AND available > 0",
+                            (school_name, selected_book)
+                        )
+                        issued += 1
+                
+                conn.commit()
+                if issued > 0:
+                    add_audit_entry('Books Issued', f"{issued} copies to class")
+                    st.success(f"✅ Issued {issued} books!")
+                    st.rerun()
+            finally:
+                conn.close()
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1586,9 +1725,11 @@ def render_individual_lending():
     """Individual book lending"""
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
+    students = load_school_data('students', [])
     classes = load_school_data('classes', [])
     academic_year = get_academic_year()
     current_term = get_current_term(school_name)
+    user = st.session_state.user
     
     st.markdown('<div class="glass-card"><h2>👤 Individual Lending</h2>', unsafe_allow_html=True)
     
@@ -1622,19 +1763,19 @@ def render_individual_lending():
                     try:
                         conn.execute(
                             """INSERT INTO borrowed (id, school_name, student_name, adm, form, stream, 
-                            book_title, book_no, borrow_date, return_date, returned, issued_by, academic_year, term)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)""",
+                            book_title, book_no, borrow_date, return_date, returned, issued_by, issued_by_email, academic_year, term)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
                             (generate_code("BOR"), school_name, name, adm, form, stream,
                              selected_book, book_no,
                              borrow_date.strftime('%Y-%m-%d'), return_date.strftime('%Y-%m-%d'),
-                             st.session_state.user['name'], academic_year, term_name)
+                             user['name'], user['email'], academic_year, term_name)
                         )
                         conn.execute(
                             "UPDATE books SET available = available - 1 WHERE school_name = ? AND title = ? AND available > 0",
                             (school_name, selected_book)
                         )
                         conn.commit()
-                        add_audit_entry('Lend Book', f"{name} borrowed '{selected_book}' (#{book_no})")
+                        add_audit_entry('Lend Book', f"{name} borrowed '{selected_book}'")
                         st.success("✅ Book lent!")
                         st.rerun()
                     finally:
@@ -1643,30 +1784,34 @@ def render_individual_lending():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_furniture_allocation():
-    """Furniture allocation with class-based view"""
+    """Furniture allocation"""
     school_name = st.session_state.school['name']
     classes = load_school_data('classes', [])
+    students = load_school_data('students', [])
     academic_year = get_academic_year()
     current_term = get_current_term(school_name)
+    user = st.session_state.user
     
-    st.markdown('<div class="glass-card"><h2>🪑 Furniture Allocation (Class-Based)</h2>', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h2>🪑 Furniture Allocation</h2>', unsafe_allow_html=True)
     
-    if not classes:
-        st.warning("No classes available. Add classes first.")
+    if classes:
+        class_options = [f"{c['name']} {c.get('stream', '')}" for c in classes]
+    else:
+        class_options = list(set(s.get('form', '') for s in students if s.get('form')))
+    
+    if not class_options:
+        st.warning("No classes available.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        class_options = [f"{c['name']} {c.get('stream', '')}" for c in classes]
-        selected_class_str = st.selectbox("Select Class:", class_options)
-        selected_class = classes[class_options.index(selected_class_str)]
+        selected_class_str = st.selectbox("Class:", class_options)
     with col2:
-        allocation_date = st.date_input("Allocation Date:", datetime.now())
+        allocation_date = st.date_input("Date:", datetime.now())
     with col3:
         term_name = st.text_input("Term:", value=current_term.get('name', 'Term 1'))
     
-    st.markdown("### Furniture Settings")
     col4, col5 = st.columns(2)
     with col4:
         chair_prefix = st.text_input("Chair Prefix:", "CH-")
@@ -1675,44 +1820,40 @@ def render_furniture_allocation():
         locker_prefix = st.text_input("Locker Prefix:", "LK-")
         locker_start = st.number_input("Locker Start:", 1, 10000, 1)
     
-    if selected_class and selected_class.get('students'):
-        students = selected_class['students']
-        class_name = selected_class['name']
-        class_stream = selected_class.get('stream', '')
-        
-        st.markdown(f"### Students in {class_name} {class_stream} ({len(students)} students)")
+    # Get students
+    class_students = []
+    if classes:
+        selected_class = next((c for c in classes if f"{c['name']} {c.get('stream', '')}" == selected_class_str), None)
+        if selected_class and selected_class.get('students'):
+            class_students = selected_class['students']
+    else:
+        form_name = selected_class_str.split(' ')[0]
+        class_students = [{'name': s['name'], 'adm': s['adm']} for s in students if s.get('form') == form_name]
+    
+    if class_students:
+        st.markdown(f"### Students ({len(class_students)})")
         
         student_data = []
-        for i, student in enumerate(students):
+        for i, s in enumerate(class_students):
             student_data.append({
-                'Name': student.get('name', student.get('Name', '')),
-                'ADM': str(student.get('adm', student.get('ADM', ''))),
-                'Form': class_name,
-                'Stream': class_stream,
+                'Name': s.get('name', s.get('Name', '')),
+                'ADM': str(s.get('adm', s.get('ADM', ''))),
                 'Chair No': f"{chair_prefix}{chair_start + i}",
                 'Locker No': f"{locker_prefix}{locker_start + i}",
                 'Allocate': True
             })
         
         df = pd.DataFrame(student_data)
-        
-        edited_df = st.data_editor(
-            df,
-            use_container_width=True,
-            hide_index=True,
+        edited_df = st.data_editor(df, use_container_width=True, hide_index=True,
             column_config={
                 "Name": st.column_config.TextColumn("Name", disabled=True),
                 "ADM": st.column_config.TextColumn("ADM", disabled=True),
-                "Form": st.column_config.TextColumn("Form", disabled=True),
-                "Stream": st.column_config.TextColumn("Stream", disabled=True),
                 "Chair No": st.column_config.TextColumn("Chair No"),
                 "Locker No": st.column_config.TextColumn("Locker No"),
                 "Allocate": st.column_config.CheckboxColumn("Allocate")
-            },
-            key="furniture_editor"
-        )
+            }, key="furniture_editor")
         
-        if st.button("✅ Allocate Furniture", use_container_width=True, type="primary"):
+        if st.button("✅ Allocate", use_container_width=True, type="primary"):
             allocated = 0
             conn = get_db_connection()
             try:
@@ -1725,25 +1866,22 @@ def render_furniture_allocation():
                         if chair_no and check_duplicate_assignment(school_name, adm, 'chair', chair_no):
                             st.warning(f"⚠️ {row['Name']} already has chair {chair_no}!")
                             continue
-                        if locker_no and check_duplicate_assignment(school_name, adm, 'locker', locker_no):
-                            st.warning(f"⚠️ {row['Name']} already has locker {locker_no}!")
-                            continue
                         
                         conn.execute(
                             """INSERT INTO furniture (id, school_name, student_name, adm, form, stream,
-                            chair_no, locker_no, allocation_date, returned, issued_by, academic_year, term)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)""",
+                            chair_no, locker_no, allocation_date, returned, issued_by, issued_by_email, academic_year, term)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
                             (generate_code("FUR"), school_name, str(row['Name']), adm,
-                             class_name, class_stream, chair_no, locker_no,
+                             selected_class_str, '', chair_no, locker_no,
                              allocation_date.strftime('%Y-%m-%d'),
-                             st.session_state.user['name'], academic_year, term_name)
+                             user['name'], user['email'], academic_year, term_name)
                         )
                         allocated += 1
                 
                 conn.commit()
                 if allocated > 0:
-                    add_audit_entry('Furniture Allocated', f"{allocated} items to {class_name} {class_stream}")
-                    st.success(f"✅ Allocated {allocated} furniture items!")
+                    add_audit_entry('Furniture Allocated', f"{allocated} items")
+                    st.success(f"✅ Allocated {allocated} items!")
                     st.rerun()
             finally:
                 conn.close()
@@ -1751,7 +1889,7 @@ def render_furniture_allocation():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_furniture_records():
-    """View furniture records with class/date filters"""
+    """View furniture records"""
     school_name = st.session_state.school['name']
     furniture = load_school_data('furniture', [])
     classes = load_school_data('classes', [])
@@ -1760,25 +1898,21 @@ def render_furniture_records():
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        class_options = ["All Classes"] + [f"{c['name']} {c.get('stream', '')}" for c in classes]
-        filter_class = st.selectbox("Class:", class_options)
+        filter_class = st.selectbox("Class:", ["All"] + [c['name'] for c in classes])
     with col2:
         filter_status = st.selectbox("Status:", ["All", "Active", "Returned"])
     with col3:
-        filter_date = st.selectbox("Date:", ["All", "Today", "This Week", "This Month", "This Term"])
+        filter_date = st.selectbox("Date:", ["All", "Today", "This Week", "This Month"])
     
     filtered = furniture
     now = datetime.now()
     
-    if filter_class != "All Classes":
-        class_name = filter_class.split(" ")[0]
-        filtered = [f for f in filtered if f.get('form') == class_name]
-    
+    if filter_class != "All":
+        filtered = [f for f in filtered if f.get('form', '').startswith(filter_class)]
     if filter_status == "Active":
         filtered = [f for f in filtered if not f.get('returned')]
     elif filter_status == "Returned":
         filtered = [f for f in filtered if f.get('returned')]
-    
     if filter_date == "Today":
         filtered = [f for f in filtered if f.get('allocation_date') == now.strftime('%Y-%m-%d')]
     elif filter_date == "This Week":
@@ -1787,141 +1921,164 @@ def render_furniture_records():
     elif filter_date == "This Month":
         month_start = now.replace(day=1).strftime('%Y-%m-%d')
         filtered = [f for f in filtered if f.get('allocation_date', '') >= month_start]
-    elif filter_date == "This Term":
-        current_term = get_current_term(school_name)
-        term_start = current_term.get('start_date', '2000-01-01')
-        filtered = [f for f in filtered if f.get('allocation_date', '') >= term_start]
     
     if filtered:
-        df = pd.DataFrame(filtered)
-        st.dataframe(df, use_container_width=True)
-        
+        st.dataframe(pd.DataFrame(filtered), use_container_width=True)
         st.metric("Records", len(filtered))
         
         if st.button("📥 Export", use_container_width=True):
+            df = pd.DataFrame(filtered)
             towrite = BytesIO()
             df.to_excel(towrite, index=False, engine='openpyxl')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
-            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="furniture_records.xlsx">📥 Download</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="furniture.xlsx">📥 Download</a>', unsafe_allow_html=True)
     else:
-        st.info("No records found")
+        st.info("No records")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_returns():
-    """Return items with class filter"""
+    """Return items - can mark as returned directly"""
     school_name = st.session_state.school['name']
     classes = load_school_data('classes', [])
+    user_email = st.session_state.user['email']
     
     st.markdown('<div class="glass-card"><h2>↩️ Return Items</h2>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        search = st.text_input("🔍 Search:", placeholder="Name, ADM, or item number")
-    with col2:
-        filter_class = st.selectbox("Class:", ["All"] + [c['name'] for c in classes])
+    tab1, tab2 = st.tabs(["📚 Books", "🪑 Furniture"])
     
-    if st.button("🔍 Search", use_container_width=True):
-        conn = get_db_connection()
-        try:
-            # Search books
-            query = """SELECT * FROM borrowed WHERE school_name = ? AND returned = 0 
-                      AND (LOWER(student_name) LIKE ? OR adm LIKE ? OR book_no LIKE ?)"""
-            params = [school_name, f"%{search.lower()}%", f"%{search}%", f"%{search}%"]
-            
-            if filter_class != "All":
-                query += " AND form = ?"
-                params.append(filter_class)
-            
-            active_books = conn.execute(query, params).fetchall()
-            
-            # Search furniture
-            query = """SELECT * FROM furniture WHERE school_name = ? AND returned = 0 
-                      AND (LOWER(student_name) LIKE ? OR adm LIKE ? OR chair_no LIKE ? OR locker_no LIKE ?)"""
-            params = [school_name, f"%{search.lower()}%", f"%{search}%", f"%{search}%", f"%{search}%"]
-            
-            if filter_class != "All":
-                query += " AND form = ?"
-                params.append(filter_class)
-            
-            active_furniture = conn.execute(query, params).fetchall()
-        finally:
-            conn.close()
+    with tab1:
+        col1, col2 = st.columns(2)
+        with col1:
+            search_book = st.text_input("🔍 Search:", placeholder="Name, ADM, book", key="ret_book_search")
+        with col2:
+            filter_class = st.selectbox("Class:", ["All"] + [c['name'] for c in classes], key="ret_book_class")
         
-        st.markdown("### 📚 Books")
-        if active_books:
-            for item in active_books:
-                item_dict = dict(item)
-                is_overdue = item_dict.get('return_date', '') < datetime.now().strftime('%Y-%m-%d')
+        if st.button("🔍 Search Books", use_container_width=True, key="ret_book_btn"):
+            conn = get_db_connection()
+            try:
+                if is_admin():
+                    query = """SELECT * FROM borrowed WHERE school_name = ? AND returned = 0 
+                              AND (LOWER(student_name) LIKE ? OR adm LIKE ? OR book_no LIKE ?)"""
+                else:
+                    query = """SELECT * FROM borrowed WHERE school_name = ? AND returned = 0 
+                              AND issued_by_email = ?
+                              AND (LOWER(student_name) LIKE ? OR adm LIKE ? OR book_no LIKE ?)"""
                 
-                col1, col2, col3 = st.columns([3, 1, 1])
-                with col1:
-                    st.write(f"**{item_dict['student_name']}** - {item_dict['book_title']} (#{item_dict['book_no']})")
-                    st.write(f"Class: {item_dict.get('form', '')} {item_dict.get('stream', '')}")
-                with col2:
-                    if is_overdue:
-                        st.write(f"⚠️ Due: {item_dict.get('return_date', '')}")
-                    else:
-                        st.write(f"Due: {item_dict.get('return_date', '')}")
-                with col3:
-                    if st.button("↩️ Return", key=f"ret_book_{item_dict['id']}"):
-                        conn = get_db_connection()
-                        try:
-                            conn.execute(
-                                "UPDATE borrowed SET returned = 1, actual_return_date = ? WHERE id = ?",
-                                (datetime.now().strftime('%Y-%m-%d'), item_dict['id'])
-                            )
-                            conn.execute(
-                                "UPDATE books SET available = available + 1 WHERE school_name = ? AND title = ?",
-                                (school_name, item_dict['book_title'])
-                            )
-                            conn.commit()
-                            add_audit_entry('Book Returned', item_dict['student_name'])
-                            st.success("✅ Returned!")
-                            st.rerun()
-                        finally:
-                            conn.close()
-                st.divider()
-        else:
-            st.info("No matching books")
+                params = [school_name]
+                if not is_admin():
+                    params.append(user_email)
+                params.extend([f"%{search_book.lower()}%", f"%{search_book}%", f"%{search_book}%"])
+                
+                if filter_class != "All":
+                    query += " AND form = ?"
+                    params.append(filter_class)
+                
+                active_books = conn.execute(query, params).fetchall()
+            finally:
+                conn.close()
+            
+            if active_books:
+                for item in active_books:
+                    item_dict = dict(item)
+                    is_overdue = item_dict.get('return_date', '') < datetime.now().strftime('%Y-%m-%d')
+                    badge = '<span class="overdue-badge">⚠️ OVERDUE</span>' if is_overdue else '<span class="active-badge">Active</span>'
+                    
+                    col1, col2, col3 = st.columns([4, 1, 1])
+                    with col1:
+                        st.markdown(f"**{sanitize_html(item_dict['student_name'])}** - {sanitize_html(item_dict['book_title'])} (#{item_dict['book_no']}) {badge}")
+                        st.caption(f"Class: {item_dict.get('form', '')} | Due: {item_dict.get('return_date', '')} | Issued by: {item_dict.get('issued_by', '')}")
+                    with col2:
+                        if st.button("↩️ Return", key=f"ret_book_{item_dict['id']}"):
+                            conn = get_db_connection()
+                            try:
+                                conn.execute(
+                                    "UPDATE borrowed SET returned = 1, actual_return_date = ?, status = 'returned' WHERE id = ?",
+                                    (datetime.now().strftime('%Y-%m-%d'), item_dict['id'])
+                                )
+                                conn.execute(
+                                    "UPDATE books SET available = available + 1 WHERE school_name = ? AND title = ?",
+                                    (school_name, item_dict['book_title'])
+                                )
+                                conn.commit()
+                                add_audit_entry('Book Returned', f"{item_dict['student_name']} - {item_dict['book_title']}")
+                                st.success("✅ Returned!")
+                                st.rerun()
+                            finally:
+                                conn.close()
+                    st.divider()
+            else:
+                st.info("No matching active book loans")
+    
+    with tab2:
+        col1, col2 = st.columns(2)
+        with col1:
+            search_furn = st.text_input("🔍 Search:", placeholder="Name, ADM, chair, locker", key="ret_furn_search")
+        with col2:
+            filter_class_f = st.selectbox("Class:", ["All"] + [c['name'] for c in classes], key="ret_furn_class")
         
-        st.markdown("### 🪑 Furniture")
-        if active_furniture:
-            for item in active_furniture:
-                item_dict = dict(item)
-                col1, col2, col3 = st.columns([3, 1, 1])
-                with col1:
-                    st.write(f"**{item_dict['student_name']}** - Chair: {item_dict['chair_no']}, Locker: {item_dict['locker_no']}")
-                with col2:
-                    st.write(f"Date: {item_dict.get('allocation_date', '')}")
-                with col3:
-                    if st.button("↩️ Return", key=f"ret_fur_{item_dict['id']}"):
-                        conn = get_db_connection()
-                        try:
-                            conn.execute(
-                                "UPDATE furniture SET returned = 1, return_date = ? WHERE id = ?",
-                                (datetime.now().strftime('%Y-%m-%d'), item_dict['id'])
-                            )
-                            conn.commit()
-                            add_audit_entry('Furniture Returned', item_dict['student_name'])
-                            st.success("✅ Returned!")
-                            st.rerun()
-                        finally:
-                            conn.close()
-                st.divider()
-        else:
-            st.info("No matching furniture")
+        if st.button("🔍 Search Furniture", use_container_width=True, key="ret_furn_btn"):
+            conn = get_db_connection()
+            try:
+                if is_admin():
+                    query = """SELECT * FROM furniture WHERE school_name = ? AND returned = 0 
+                              AND (LOWER(student_name) LIKE ? OR adm LIKE ? OR chair_no LIKE ? OR locker_no LIKE ?)"""
+                else:
+                    query = """SELECT * FROM furniture WHERE school_name = ? AND returned = 0 
+                              AND issued_by_email = ?
+                              AND (LOWER(student_name) LIKE ? OR adm LIKE ? OR chair_no LIKE ? OR locker_no LIKE ?)"""
+                
+                params = [school_name]
+                if not is_admin():
+                    params.append(user_email)
+                params.extend([f"%{search_furn.lower()}%", f"%{search_furn}%", f"%{search_furn}%", f"%{search_furn}%"])
+                
+                if filter_class_f != "All":
+                    query += " AND form LIKE ?"
+                    params.append(f"%{filter_class_f}%")
+                
+                active_furniture = conn.execute(query, params).fetchall()
+            finally:
+                conn.close()
+            
+            if active_furniture:
+                for item in active_furniture:
+                    item_dict = dict(item)
+                    col1, col2 = st.columns([5, 1])
+                    with col1:
+                        st.markdown(f"**{sanitize_html(item_dict['student_name'])}** - Chair: {item_dict.get('chair_no', '')} | Locker: {item_dict.get('locker_no', '')}")
+                        st.caption(f"Class: {item_dict.get('form', '')} | Date: {item_dict.get('allocation_date', '')}")
+                    with col2:
+                        if st.button("↩️ Return", key=f"ret_fur_{item_dict['id']}"):
+                            conn = get_db_connection()
+                            try:
+                                conn.execute(
+                                    "UPDATE furniture SET returned = 1, return_date = ? WHERE id = ?",
+                                    (datetime.now().strftime('%Y-%m-%d'), item_dict['id'])
+                                )
+                                conn.commit()
+                                add_audit_entry('Furniture Returned', item_dict['student_name'])
+                                st.success("✅ Returned!")
+                                st.rerun()
+                            finally:
+                                conn.close()
+                    st.divider()
+            else:
+                st.info("No matching active furniture")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_borrowed_records():
-    """View borrowed records with filters"""
+    """Borrowed records with return functionality"""
     school_name = st.session_state.school['name']
     borrowed = load_school_data('borrowed', [])
     classes = load_school_data('classes', [])
     
     st.markdown('<div class="glass-card"><h2>📋 Borrowed Records</h2>', unsafe_allow_html=True)
+    
+    if not is_admin():
+        st.info("📝 Showing records you issued. Admin can see all records.")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -1929,79 +2086,72 @@ def render_borrowed_records():
     with col2:
         filter_status = st.selectbox("Status:", ["All", "Active", "Returned", "Overdue"])
     with col3:
-        search = st.text_input("Search:", placeholder="Name, ADM, book")
+        search = st.text_input("🔍 Search:", placeholder="Name, ADM, book")
     
     filtered = borrowed
     now = datetime.now()
     
     if filter_class != "All":
         filtered = [b for b in filtered if b.get('form') == filter_class]
-    
     if filter_status == "Active":
         filtered = [b for b in filtered if not b.get('returned')]
     elif filter_status == "Returned":
         filtered = [b for b in filtered if b.get('returned')]
     elif filter_status == "Overdue":
         filtered = [b for b in filtered if not b.get('returned') and b.get('return_date', '') < now.strftime('%Y-%m-%d')]
-    
     if search:
-        s = search.lower()
-        filtered = [b for b in filtered if s in b.get('student_name', '').lower() or s in b.get('adm', '').lower() or s in b.get('book_title', '').lower() or s in b.get('book_no', '').lower()]
+        q = search.lower()
+        filtered = [b for b in filtered if q in b.get('student_name', '').lower() or q in b.get('adm', '').lower() or q in b.get('book_title', '').lower()]
     
     if filtered:
-        df = pd.DataFrame(filtered)
-        st.dataframe(df, use_container_width=True)
+        # Add status badges and return button
+        for i, item in enumerate(filtered):
+            item_dict = dict(item)
+            is_overdue = not item_dict.get('returned') and item_dict.get('return_date', '') < now.strftime('%Y-%m-%d')
+            
+            if item_dict.get('returned'):
+                badge = '<span class="returned-badge">✅ Returned</span>'
+            elif is_overdue:
+                badge = '<span class="overdue-badge">⚠️ Overdue</span>'
+            else:
+                badge = '<span class="active-badge">📖 Active</span>'
+            
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                st.markdown(f"""
+                **{sanitize_html(item_dict.get('student_name', ''))}** - {sanitize_html(item_dict.get('book_title', ''))} (#{item_dict.get('book_no', '')}) {badge}
+                <br><small>Class: {item_dict.get('form', '')} | Borrowed: {item_dict.get('borrow_date', '')} | Due: {item_dict.get('return_date', '')} | Issued by: {item_dict.get('issued_by', '')}</small>
+                """, unsafe_allow_html=True)
+            with col2:
+                if not item_dict.get('returned'):
+                    if st.button("↩️ Return", key=f"bor_rec_ret_{item_dict['id']}"):
+                        conn = get_db_connection()
+                        try:
+                            conn.execute(
+                                "UPDATE borrowed SET returned = 1, actual_return_date = ?, status = 'returned' WHERE id = ?",
+                                (datetime.now().strftime('%Y-%m-%d'), item_dict['id'])
+                            )
+                            conn.execute(
+                                "UPDATE books SET available = available + 1 WHERE school_name = ? AND title = ?",
+                                (school_name, item_dict['book_title'])
+                            )
+                            conn.commit()
+                            add_audit_entry('Book Returned from Records', f"{item_dict['student_name']} - {item_dict['book_title']}")
+                            st.success("✅ Returned!")
+                            st.rerun()
+                        finally:
+                            conn.close()
+            st.divider()
         
-        active = len([b for b in filtered if not b.get('returned')])
-        st.metric("Active", active)
-        
-        if st.button("📥 Export", use_container_width=True):
+        if st.button("📥 Export to Excel", use_container_width=True):
+            df = pd.DataFrame(filtered)
             towrite = BytesIO()
             df.to_excel(towrite, index=False, engine='openpyxl')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
             st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed.xlsx">📥 Download</a>', unsafe_allow_html=True)
     else:
-        st.info("No records")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_members():
-    """Member management"""
-    school_name = st.session_state.school['name']
-    members = load_school_data('members', [])
-    
-    st.markdown('<div class="glass-card"><h2>👥 Members</h2>', unsafe_allow_html=True)
-    
-    with st.form("frm_member"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            name = st.text_input("Name:")
-        with col2:
-            student_class = st.text_input("Class:")
-        with col3:
-            stream = st.text_input("Stream:")
-        
-        if st.form_submit_button("➕ Add", use_container_width=True):
-            if name:
-                conn = get_db_connection()
-                try:
-                    conn.execute(
-                        "INSERT INTO members (id, school_name, name, student_class, stream, added_by, added_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                        (generate_code("MEM"), school_name, name, student_class, stream, 
-                         st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                    )
-                    conn.commit()
-                    add_audit_entry('Member Added', name)
-                    st.success("✅ Added!")
-                    st.rerun()
-                finally:
-                    conn.close()
-    
-    if members:
-        st.dataframe(pd.DataFrame(members), use_container_width=True)
-    else:
-        st.info("No members")
+        st.info("No records found")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -2010,18 +2160,24 @@ def render_catalog():
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
     
-    st.markdown('<div class="glass-card"><h2>📚 Catalog</h2>', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h2>📚 Book Catalog</h2>', unsafe_allow_html=True)
     
     with st.form("frm_book"):
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2, col3 = st.columns(3)
         with col1:
             title = st.text_input("Title:")
         with col2:
             btype = st.selectbox("Type:", ["Textbook", "Novel", "Reference", "Magazine", "Other"])
         with col3:
-            qty = st.number_input("Qty:", 1, 1000, 1)
+            qty = st.number_input("Quantity:", 1, 1000, 1)
         
-        if st.form_submit_button("📖 Add", use_container_width=True):
+        col4, col5 = st.columns(2)
+        with col4:
+            author = st.text_input("Author:")
+        with col5:
+            subject = st.text_input("Subject:")
+        
+        if st.form_submit_button("📖 Add Book", use_container_width=True):
             if title:
                 conn = get_db_connection()
                 try:
@@ -2037,9 +2193,10 @@ def render_catalog():
                         )
                     else:
                         conn.execute(
-                            "INSERT INTO books (school_name, title, type, quantity, available, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (school_name, title, btype, qty, qty, st.session_state.user['name'],
-                             datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                            """INSERT INTO books (school_name, title, author, type, subject, quantity, available, created_by, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (school_name, title, author, btype, subject, qty, qty, 
+                             st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                         )
                     conn.commit()
                     add_audit_entry('Book Added', title)
@@ -2049,16 +2206,18 @@ def render_catalog():
                     conn.close()
     
     if books:
-        search = st.text_input("🔍 Search:", placeholder="Filter by title")
+        search = st.text_input("🔍 Search:", placeholder="Filter by title, author, subject")
         filtered = books
         if search:
-            s = search.lower()
-            filtered = [b for b in books if s in b.get('title', '').lower()]
+            q = search.lower()
+            filtered = [b for b in books if q in b.get('title', '').lower() or q in b.get('author', '').lower() or q in b.get('subject', '').lower()]
         
         for book in filtered:
             col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
             with col1:
-                st.write(f"📖 **{book['title']}**")
+                st.write(f"📖 **{sanitize_html(book['title'])}**")
+                if book.get('author'):
+                    st.caption(f"by {book['author']}")
             with col2:
                 st.write(book.get('type', '-'))
             with col3:
@@ -2078,7 +2237,7 @@ def render_catalog():
                             conn.close()
             st.divider()
     else:
-        st.info("No books")
+        st.info("No books in catalog")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -2093,18 +2252,22 @@ def render_teachers():
         col1, col2 = st.columns(2)
         with col1:
             name = st.text_input("Name:")
-            subject = st.text_input("Subjects:")
+            email = st.text_input("Email:")
+            phone = st.text_input("Phone:")
         with col2:
+            subjects = st.text_input("Subjects:")
             classes = st.text_input("Classes:")
             duty = st.text_input("Duty:")
         
-        if st.form_submit_button("➕ Add", use_container_width=True):
+        if st.form_submit_button("➕ Add Teacher", use_container_width=True):
             if name:
                 conn = get_db_connection()
                 try:
                     conn.execute(
-                        "INSERT INTO teachers (id, school_name, name, subject, classes, duty, added_by, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                        (generate_code("TCH"), school_name, name, subject, classes, duty, st.session_state.user['name'])
+                        """INSERT INTO teachers (id, school_name, name, email, phone, subjects, classes, duty, added_by, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)""",
+                        (generate_code("TCH"), school_name, name, email, phone, subjects, classes, duty, 
+                         st.session_state.user['name'])
                     )
                     conn.commit()
                     add_audit_entry('Teacher Added', name)
@@ -2140,19 +2303,19 @@ def render_classes():
             with col2:
                 stream = st.text_input("Stream:")
             
-            if st.button("💾 Save", use_container_width=True):
+            if st.button("💾 Save Class", use_container_width=True):
                 if class_name:
                     students = [{col: str(row[col]) if not pd.isna(row[col]) else "" for col in df.columns} for _, row in df.iterrows()]
                     conn = get_db_connection()
                     try:
                         conn.execute(
                             "INSERT INTO classes (school_name, name, stream, students, created_by, created, academic_year, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                            (school_name, class_name, stream, json.dumps(students), st.session_state.user['name'],
-                             datetime.now().strftime("%Y-%m-%d"), academic_year)
+                            (school_name, class_name, stream, json.dumps(students), 
+                             st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d"), academic_year)
                         )
                         conn.commit()
                         add_audit_entry('Class Added', f"{class_name} {stream}")
-                        st.success(f"✅ Saved!")
+                        st.success("✅ Saved!")
                         st.rerun()
                     finally:
                         conn.close()
@@ -2189,13 +2352,13 @@ def render_academic_terms():
     with st.form("frm_term"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            term_name = st.text_input("Term Name:", placeholder="Term 1")
+            term_name = st.text_input("Term Name:")
         with col2:
             start_date = st.date_input("Start:", datetime.now())
         with col3:
             end_date = st.date_input("End:", datetime.now() + timedelta(days=90))
         
-        if st.form_submit_button("➕ Add", use_container_width=True):
+        if st.form_submit_button("➕ Add Term", use_container_width=True):
             if term_name:
                 conn = get_db_connection()
                 try:
@@ -2207,7 +2370,7 @@ def render_academic_terms():
                          st.session_state.user['name'])
                     )
                     conn.commit()
-                    st.success(f"✅ Added!")
+                    st.success("✅ Added!")
                     st.rerun()
                 finally:
                     conn.close()
@@ -2217,7 +2380,7 @@ def render_academic_terms():
             is_current = term.get('is_current')
             st.markdown(f"""
             <div style="padding:10px;margin:5px 0;border-left:4px solid {'#28a745' if is_current else '#666'};background:rgba(255,255,255,0.05);border-radius:8px;">
-                <strong>{term['name']}</strong> {'✅ Current' if is_current else ''}<br>
+                <strong>{sanitize_html(term['name'])}</strong> {'✅ Current' if is_current else ''}<br>
                 {term.get('start_date', '')} → {term.get('end_date', '')}
             </div>
             """, unsafe_allow_html=True)
@@ -2249,7 +2412,7 @@ def render_qr():
         with col2:
             end = st.number_input("End:", 1, 10000, start)
         
-        if st.button("Generate", use_container_width=True):
+        if st.button("Generate QR Codes", use_container_width=True):
             cols = st.columns(4)
             for i in range(start, min(end + 1, start + 20)):
                 qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -2275,7 +2438,6 @@ def render_qr():
             buf.seek(0)
             img_b64 = base64.b64encode(buf.read()).decode()
             st.image(f"data:image/png;base64,{img_b64}", caption=manual, width=200)
-            st.success(f"✅ {manual}")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -2368,7 +2530,7 @@ def render_forum():
         """, unsafe_allow_html=True)
     
     with st.form("frm_forum"):
-        msg = st.text_area("Message:", key="forum_msg", height=100)
+        msg = st.text_area("Message:", height=100)
         if st.form_submit_button("📢 Post"):
             if msg:
                 conn = get_db_connection()
@@ -2432,65 +2594,64 @@ def render_notepad():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_system_overview():
-    """System overview"""
+    """System overview with charts"""
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
     borrowed = load_school_data('borrowed', [])
     furniture = load_school_data('furniture', [])
-    members = load_school_data('members', [])
+    students = load_school_data('students', [])
     users = load_school_data('users', [])
     classes = load_school_data('classes', [])
     
-    st.markdown('<div class="glass-card"><h2>🔍 Overview</h2>', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h2>🔍 System Overview</h2>', unsafe_allow_html=True)
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("📚 Books", sum(b.get('quantity', 0) for b in books))
     with col2:
-        st.metric("📖 Active", len([b for b in borrowed if not b.get('returned')]))
+        st.metric("📖 Active Loans", len([b for b in borrowed if not b.get('returned')]))
     with col3:
         st.metric("🪑 Furniture", len([f for f in furniture if not f.get('returned')]))
     with col4:
-        st.metric("👥 Staff", len(users))
+        st.metric("👥 Students", len(students))
     
-    # Charts
     if classes:
         class_data = []
         for cls in classes:
             class_name = cls['name']
             class_books = len([b for b in borrowed if b.get('form') == class_name and not b.get('returned')])
-            class_furniture = len([f for f in furniture if f.get('form') == class_name and not f.get('returned')])
+            class_furniture = len([f for f in furniture if f.get('form', '').startswith(class_name) and not f.get('returned')])
             class_data.append({'Class': class_name, 'Books': class_books, 'Furniture': class_furniture})
         
         if class_data:
             df = pd.DataFrame(class_data)
             fig = px.bar(df, x='Class', y=['Books', 'Furniture'], barmode='group',
-                        color_discrete_sequence=['#e94560', '#28a745'])
+                        color_discrete_sequence=['#e94560', '#28a745'], title="Allocations by Class")
             fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
             st.plotly_chart(fig, use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_audit_log():
-    """Audit log (admin only)"""
-    if not is_admin():
-        st.error("🔒 Admin access required!")
-        return
+    """Audit log"""
+    st.markdown('<div class="glass-card"><h2>📝 Audit Log</h2>', unsafe_allow_html=True)
     
     audit = load_school_data('audit_log', [])
     
-    st.markdown('<div class="glass-card"><h2>📝 Audit Log</h2>', unsafe_allow_html=True)
+    if not is_admin():
+        st.info("Showing your activity log. Admin can see all.")
     
     if audit:
-        df = pd.DataFrame(audit)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(pd.DataFrame(audit), use_container_width=True)
         
-        if st.button("📥 Export", use_container_width=True):
-            towrite = BytesIO()
-            df.to_excel(towrite, index=False, engine='openpyxl')
-            towrite.seek(0)
-            b64 = base64.b64encode(towrite.read()).decode()
-            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="audit_log.xlsx">📥 Download</a>', unsafe_allow_html=True)
+        if is_admin():
+            if st.button("📥 Export", use_container_width=True):
+                df = pd.DataFrame(audit)
+                towrite = BytesIO()
+                df.to_excel(towrite, index=False, engine='openpyxl')
+                towrite.seek(0)
+                b64 = base64.b64encode(towrite.read()).decode()
+                st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="audit_log.xlsx">📥 Download</a>', unsafe_allow_html=True)
     else:
         st.info("No entries")
     
@@ -2517,7 +2678,7 @@ def render_reports():
                 
                 counts = df['returned'].value_counts()
                 fig = px.pie(values=[counts.get(0, 0), counts.get(1, 0)], names=['Active', 'Returned'],
-                            color_discrete_sequence=['#e94560', '#28a745'])
+                            color_discrete_sequence=['#e94560', '#28a745'], title="Loan Status")
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
                 st.plotly_chart(fig, use_container_width=True)
         
@@ -2534,7 +2695,174 @@ def render_reports():
                 st.dataframe(pd.DataFrame([dict(r) for r in overdue]), use_container_width=True)
                 st.warning(f"⚠️ {len(overdue)} overdue!")
             else:
-                st.success("No overdue!")
+                st.success("No overdue items!")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_events():
+    """School calendar/events"""
+    school_name = st.session_state.school['name']
+    events = load_school_data('events', [])
+    
+    st.markdown('<div class="glass-card"><h2>📅 School Calendar & Events</h2>', unsafe_allow_html=True)
+    
+    with st.form("frm_event"):
+        col1, col2 = st.columns(2)
+        with col1:
+            title = st.text_input("Event Title:")
+            event_date = st.date_input("Date:", datetime.now())
+        with col2:
+            event_type = st.selectbox("Type:", ["Academic", "Sports", "Cultural", "Meeting", "Holiday", "Other"])
+            description = st.text_area("Description:")
+        
+        if st.form_submit_button("➕ Add Event", use_container_width=True):
+            if title:
+                conn = get_db_connection()
+                try:
+                    conn.execute(
+                        """INSERT INTO events (school_name, title, description, event_date, event_type, created_by, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (school_name, title, description, event_date.strftime('%Y-%m-%d'), event_type,
+                         st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    )
+                    conn.commit()
+                    st.success("✅ Event added!")
+                    st.rerun()
+                finally:
+                    conn.close()
+    
+    if events:
+        events_sorted = sorted(events, key=lambda x: x.get('event_date', ''))
+        for event in events_sorted:
+            event_date_str = event.get('event_date', '')
+            is_past = event_date_str < datetime.now().strftime('%Y-%m-%d')
+            
+            st.markdown(f"""
+            <div style="padding:10px;margin:5px 0;border-left:4px solid {'#666' if is_past else '#e94560'};background:rgba(255,255,255,0.05);border-radius:8px;">
+                <strong>{sanitize_html(event.get('title', ''))}</strong> 
+                <small>({event.get('event_type', '')})</small><br>
+                📅 {event_date_str}<br>
+                {sanitize_html(event.get('description', ''))}
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No events")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_fees():
+    """Fee records management"""
+    school_name = st.session_state.school['name']
+    fees = load_school_data('fees', [])
+    students = load_school_data('students', [])
+    academic_year = get_academic_year()
+    current_term = get_current_term(school_name)
+    
+    st.markdown('<div class="glass-card"><h2>💰 Fee Records</h2>', unsafe_allow_html=True)
+    
+    with st.form("frm_fee"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            student_select = st.selectbox("Student:", ["Select"] + [f"{s['name']} ({s['adm']})" for s in students])
+            amount = st.number_input("Total Fee:", 0.0, 1000000.0, 0.0)
+        with col2:
+            paid = st.number_input("Amount Paid:", 0.0, 1000000.0, 0.0)
+            payment_date = st.date_input("Payment Date:", datetime.now())
+        with col3:
+            term = st.text_input("Term:", value=current_term.get('name', 'Term 1'))
+            status = st.selectbox("Status:", ["pending", "partial", "completed"])
+        
+        if st.form_submit_button("💾 Save Fee Record", use_container_width=True):
+            if student_select != "Select":
+                student_name = student_select.split(" (")[0]
+                student_adm = student_select.split("(")[1].replace(")", "")
+                balance = amount - paid
+                
+                conn = get_db_connection()
+                try:
+                    conn.execute(
+                        """INSERT OR REPLACE INTO fees (id, school_name, student_adm, student_name, form, amount, paid, balance, term, academic_year, last_payment_date, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (generate_code("FEE"), school_name, student_adm, student_name, '',
+                         amount, paid, balance, term, academic_year,
+                         payment_date.strftime('%Y-%m-%d'), status)
+                    )
+                    conn.commit()
+                    st.success("✅ Saved!")
+                    st.rerun()
+                finally:
+                    conn.close()
+    
+    if fees:
+        st.dataframe(pd.DataFrame(fees), use_container_width=True)
+        
+        total_fees = sum(f.get('amount', 0) for f in fees)
+        total_paid = sum(f.get('paid', 0) for f in fees)
+        total_balance = sum(f.get('balance', 0) for f in fees)
+        
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric("Total Fees", f"KES {total_fees:,.2f}")
+        with col_m2:
+            st.metric("Total Paid", f"KES {total_paid:,.2f}")
+        with col_m3:
+            st.metric("Outstanding", f"KES {total_balance:,.2f}")
+    else:
+        st.info("No fee records")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_timetable():
+    """Timetable management"""
+    school_name = st.session_state.school['name']
+    timetable = load_school_data('timetable', [])
+    classes = load_school_data('classes', [])
+    teachers = load_school_data('teachers', [])
+    
+    st.markdown('<div class="glass-card"><h2>📅 Timetable</h2>', unsafe_allow_html=True)
+    
+    with st.form("frm_timetable"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            class_name = st.selectbox("Class:", [c['name'] for c in classes] if classes else ["Form 1"])
+            day = st.selectbox("Day:", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])
+        with col2:
+            period = st.selectbox("Period:", ["8:00-8:40", "8:40-9:20", "9:20-10:00", "10:20-11:00", 
+                                              "11:00-11:40", "11:40-12:20", "14:00-14:40", "14:40-15:20"])
+            subject = st.text_input("Subject:")
+        with col3:
+            teacher = st.selectbox("Teacher:", [t['name'] for t in teachers] if teachers else [])
+            room = st.text_input("Room:")
+        
+        if st.form_submit_button("➕ Add to Timetable", use_container_width=True):
+            if subject:
+                conn = get_db_connection()
+                try:
+                    conn.execute(
+                        """INSERT INTO timetable (school_name, class_name, day, period, subject, teacher, room, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (school_name, class_name, day, period, subject, teacher, room, st.session_state.user['name'])
+                    )
+                    conn.commit()
+                    st.success("✅ Added!")
+                    st.rerun()
+                finally:
+                    conn.close()
+    
+    if timetable:
+        class_filter = st.selectbox("View Class:", ["All"] + list(set(t['class_name'] for t in timetable)))
+        day_filter = st.selectbox("View Day:", ["All", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])
+        
+        filtered = timetable
+        if class_filter != "All":
+            filtered = [t for t in filtered if t['class_name'] == class_filter]
+        if day_filter != "All":
+            filtered = [t for t in filtered if t['day'] == day_filter]
+        
+        if filtered:
+            st.dataframe(pd.DataFrame(filtered), use_container_width=True)
+    else:
+        st.info("No timetable entries")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -2592,7 +2920,7 @@ def render_settings():
         for u in users:
             col1, col2, col3 = st.columns([3, 1, 1])
             with col1:
-                st.write(f"{'👑' if u['role']=='admin' else '👨‍🏫'} **{u['name']}** ({u['role']})")
+                st.write(f"{'👑' if u['role']=='admin' else '👨‍🏫'} **{sanitize_html(u['name'])}** ({u['role']})")
             with col2:
                 if u['email'] != st.session_state.user['email'] and u['role'] != 'admin':
                     if st.button("👑 Promote", key=f"prom_{u['email']}"):
@@ -2623,17 +2951,17 @@ def render_settings():
         render_academic_terms()
     
     with tab3:
-        if st.button("📥 Backup", use_container_width=True):
+        if st.button("📥 Backup Data", use_container_width=True):
             conn = get_db_connection()
             try:
-                tables = ['schools', 'users', 'books', 'borrowed', 'furniture', 'members', 'teachers', 'classes', 'audit_log']
+                tables = ['schools', 'users', 'books', 'borrowed', 'furniture', 'students', 'teachers', 'classes', 'audit_log']
                 backup = {}
                 for table in tables:
                     rows = conn.execute(f"SELECT * FROM {table} WHERE school_name = ?", (school_name,)).fetchall()
                     backup[table] = [dict(r) for r in rows]
                 
                 b64 = base64.b64encode(json.dumps(backup, indent=2, default=str).encode()).decode()
-                st.markdown(f'<a href="data:application/json;base64,{b64}" download="backup.json">📥 Download</a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="data:application/json;base64,{b64}" download="backup_{school_name}.json">📥 Download</a>', unsafe_allow_html=True)
                 st.success("✅ Ready!")
             finally:
                 conn.close()
@@ -2641,7 +2969,7 @@ def render_settings():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_database_manager():
-    """Database manager (admin only)"""
+    """Database manager"""
     if not is_admin():
         st.error("🔒 Admin access required!")
         return
@@ -2649,13 +2977,14 @@ def render_database_manager():
     school_name = st.session_state.school['name']
     
     st.markdown('<div class="glass-card"><h2>🗄️ Database Manager</h2>', unsafe_allow_html=True)
-    st.warning("⚠️ Admin only - Handle with care!")
+    st.warning("⚠️ Admin only!")
     
     tables = {
         "Schools": "schools", "Users": "users", "Books": "books",
-        "Borrowed": "borrowed", "Furniture": "furniture", "Members": "members",
+        "Borrowed": "borrowed", "Furniture": "furniture", "Students": "students",
         "Teachers": "teachers", "Classes": "classes", "Terms": "academic_terms",
-        "Audit Log": "audit_log", "Chat": "chat_messages", "Forum": "forum_messages"
+        "Audit Log": "audit_log", "Chat": "chat_messages", "Forum": "forum_messages",
+        "Events": "events", "Fees": "fees", "Timetable": "timetable"
     }
     
     selected = st.selectbox("Table:", list(tables.keys()))
