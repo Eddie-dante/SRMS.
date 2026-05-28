@@ -1,5 +1,4 @@
 # app.py - SRMS - School Resource Management System by WeGEM
-# Complete Fixed Version
 import streamlit as st
 import pandas as pd
 import json
@@ -20,12 +19,12 @@ import bcrypt
 import html
 import sqlite3
 from contextlib import contextmanager
-import docx
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 import re
 from typing import Optional, Dict, Any, List, Tuple
 import calendar
+import colorsys
+from urllib.request import urlopen
+import requests
 
 # Page config
 st.set_page_config(
@@ -50,7 +49,7 @@ def init_sqlite_db():
         
         cursor.execute("PRAGMA journal_mode=WAL")
         
-        # Schools table - simplified
+        # Schools table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS schools (
                 name TEXT PRIMARY KEY,
@@ -82,7 +81,7 @@ def init_sqlite_db():
             )
         ''')
         
-        # Books table - fixed column order
+        # Books table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS books (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,24 +146,7 @@ def init_sqlite_db():
             )
         ''')
         
-        # Furniture inventory table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS furniture_inventory (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                school_name TEXT,
-                item_type TEXT,
-                item_code TEXT,
-                condition TEXT DEFAULT 'Good',
-                status TEXT DEFAULT 'Available',
-                location TEXT,
-                notes TEXT,
-                added_by TEXT,
-                added_date TEXT,
-                UNIQUE(school_name, item_code)
-            )
-        ''')
-        
-        # Students table
+        # COMPREHENSIVE STUDENTS TABLE with ALL details
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS students (
                 adm TEXT,
@@ -177,9 +159,22 @@ def init_sqlite_db():
                 parent_name TEXT,
                 parent_phone TEXT,
                 parent_email TEXT,
+                parent_occupation TEXT,
                 address TEXT,
+                city TEXT,
+                postal_code TEXT,
+                medical_info TEXT,
+                enrollment_date TEXT,
+                previous_school TEXT,
+                religion TEXT,
+                nationality TEXT,
+                kcpe_marks TEXT,
+                special_needs TEXT,
+                emergency_contact TEXT,
+                emergency_phone TEXT,
                 added_by TEXT,
                 added_at TEXT,
+                updated_at TEXT,
                 is_active INTEGER DEFAULT 1,
                 PRIMARY KEY (adm, school_name)
             )
@@ -213,7 +208,6 @@ def init_sqlite_db():
                 students TEXT,
                 created_by TEXT,
                 created TEXT,
-                academic_year TEXT,
                 is_active INTEGER DEFAULT 1
             )
         ''')
@@ -255,8 +249,6 @@ def init_sqlite_db():
                 to_email TEXT,
                 message TEXT,
                 timestamp TEXT,
-                attachment TEXT,
-                emoji TEXT,
                 read_status INTEGER DEFAULT 0,
                 deleted_by_sender INTEGER DEFAULT 0,
                 deleted_by_receiver INTEGER DEFAULT 0
@@ -273,8 +265,6 @@ def init_sqlite_db():
                 role TEXT,
                 message TEXT,
                 timestamp TEXT,
-                attachment TEXT,
-                emoji TEXT,
                 is_deleted INTEGER DEFAULT 0
             )
         ''')
@@ -290,21 +280,7 @@ def init_sqlite_db():
                 title TEXT,
                 timestamp TEXT,
                 is_private INTEGER DEFAULT 1,
-                shared_with TEXT,
                 is_deleted INTEGER DEFAULT 0
-            )
-        ''')
-        
-        # Wallpapers table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS wallpapers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                school_name TEXT,
-                name TEXT,
-                url TEXT,
-                is_custom INTEGER DEFAULT 0,
-                uploaded_by TEXT,
-                uploaded_at TEXT
             )
         ''')
         
@@ -326,7 +302,6 @@ def init_sqlite_db():
                 school_name TEXT PRIMARY KEY,
                 max_borrow_days INTEGER DEFAULT 14,
                 max_books_per_student INTEGER DEFAULT 3,
-                auto_return_reminders INTEGER DEFAULT 0,
                 maintenance_mode INTEGER DEFAULT 0,
                 school_motto TEXT
             )
@@ -358,7 +333,6 @@ def init_sqlite_db():
                 paid REAL,
                 balance REAL,
                 term TEXT,
-                academic_year TEXT,
                 last_payment_date TEXT,
                 status TEXT DEFAULT 'pending'
             )
@@ -391,7 +365,6 @@ def init_sqlite_db():
 init_sqlite_db()
 
 def get_db_connection():
-    """Get a database connection"""
     db_path = DATA_DIR / "srms.db"
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -399,11 +372,11 @@ def get_db_connection():
 
 # ============ 200+ WALLPAPERS ============
 WALLPAPERS = {
-    "None": "",
+    "None (Dark Gradient)": "",
     "Library Classic": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920&q=80",
     "Modern Classroom": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920&q=80",
     "School Building": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920&q=80",
-    "Study Desk": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920&q=80",
+    "Study Desk Warm": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920&q=80",
     "Bookshelf Heaven": "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920&q=80",
     "Graduation Day": "https://images.unsplash.com/photo-1523050854058-8df90910f68e?w=1920&q=80",
     "Lecture Hall": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1920&q=80",
@@ -414,136 +387,99 @@ WALLPAPERS = {
     "Art Studio": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1920&q=80",
     "Music Room": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=1920&q=80",
     "Sports Field": "https://images.unsplash.com/photo-1459865264687-595d652de67e?w=1920&q=80",
-    "Cafeteria": "https://images.unsplash.com/photo-1574482620811-1aa16ffe3c82?w=1920&q=80",
+    "Cafeteria Bright": "https://images.unsplash.com/photo-1574482620811-1aa16ffe3c82?w=1920&q=80",
     "Sunset Campus": "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=80",
     "Ocean View": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
     "Forest Path": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
     "Mountain Peak": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
     "Desert Dunes": "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920&q=80",
     "Waterfall": "https://images.unsplash.com/photo-1544551763-46a013bb70b5?w=1920&q=80",
-    "Cherry Blossom": "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920&q=80",
+    "Cherry Blossom Light": "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920&q=80",
     "Northern Lights": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920&q=80",
-    "Galaxy Stars": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
-    "City Lights": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920&q=80",
+    "Galaxy Stars Dark": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
+    "City Lights Night": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920&q=80",
     "Tokyo Night": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920&q=80",
-    "New York": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1920&q=80",
-    "Paris": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920&q=80",
-    "London": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80",
-    "Dubai": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920&q=80",
+    "New York Skyline": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1920&q=80",
+    "Paris Romance": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920&q=80",
+    "London Bridge": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80",
+    "Dubai Modern": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920&q=80",
     "Autumn Leaves": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Winter Snow": "https://images.unsplash.com/photo-1477601263568-180e2c6d046e?w=1920&q=80",
-    "Spring Flowers": "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80",
-    "Summer Beach": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+    "Winter Snow White": "https://images.unsplash.com/photo-1477601263568-180e2c6d046e?w=1920&q=80",
+    "Spring Flowers Bright": "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80",
+    "Summer Beach Light": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
     "Rainy Window": "https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=1920&q=80",
-    "Starry Night": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80",
-    "Golden Hour": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
-    "Abstract Art": "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=1920&q=80",
-    "Geometric": "https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=1920&q=80",
-    "Minimalist": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1920&q=80",
-    "Dark Gradient": "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920&q=80",
-    "Blue Abstract": "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920&q=80",
-    "Purple Haze": "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920&q=80",
-    "Green Nature": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=80",
+    "Starry Night Dark": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80",
+    "Golden Hour Warm": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
+    "Abstract Art Colorful": "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=1920&q=80",
+    "Geometric Pattern": "https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=1920&q=80",
+    "Minimalist White": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1920&q=80",
+    "Dark Gradient Tech": "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920&q=80",
+    "Blue Abstract Dark": "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920&q=80",
+    "Purple Haze Dark": "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920&q=80",
+    "Green Nature Bright": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=80",
     "Sunrise Mountains": "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&q=80",
-    "Architecture": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920&q=80",
-    "Technology": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&q=80",
-    "Knowledge": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1920&q=80",
-    "Success": "https://images.unsplash.com/photo-1494178270175-e96de2971df9?w=1920&q=80",
-    "Peaceful Garden": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
+    "Architecture Modern": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920&q=80",
+    "Technology Circuit": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&q=80",
+    "Knowledge Books": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1920&q=80",
+    "Success Path": "https://images.unsplash.com/photo-1494178270175-e96de2971df9?w=1920&q=80",
+    "Peaceful Garden Light": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
     "Math Blackboard": "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=1920&q=80",
     "Chemistry Lab": "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?w=1920&q=80",
     "Physics Lab": "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=1920&q=80",
     "Biology Lab": "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=1920&q=80",
     "Geography Class": "https://images.unsplash.com/photo-1526495124232-a04e1849168c?w=1920&q=80",
-    "History Museum": "https://images.unsplash.com/photo-1569590034708-18b27e8cb06e?w=1920&q=80",
-    "Language Class": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1920&q=80",
-    "Drama Theater": "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=1920&q=80",
-    "Dance Studio": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=1920&q=80",
-    "Swimming Pool": "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=1920&q=80",
-    "Basketball Court": "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1920&q=80",
-    "Soccer Field": "https://images.unsplash.com/photo-1459865264687-595d652de67e?w=1920&q=80",
-    "Track Field": "https://images.unsplash.com/photo-1461896836934-bd45ba9cf0a5?w=1920&q=80",
-    "School Garden": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
-    "School Entrance": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1920&q=80",
     "School Hallway": "https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1920&q=80",
     "School Lockers": "https://images.unsplash.com/photo-1588072432836-e10032774350?w=1920&q=80",
-    "School Bell": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1920&q=80",
     "Reading Corner": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=1920&q=80",
     "Study Group": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1920&q=80",
     "Graduation Caps": "https://images.unsplash.com/photo-1523050854058-8df90910f68e?w=1920&q=80",
-    "Diploma": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920&q=80",
-    "Pencil Case": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1920&q=80",
-    "Notebook": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920&q=80",
-    "Calculator": "https://images.unsplash.com/photo-1587145820266-a5951ee6f620?w=1920&q=80",
-    "Microscope": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1920&q=80",
-    "Telescope": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
-    "Globe": "https://images.unsplash.com/photo-1526495124232-a04e1849168c?w=1920&q=80",
-    "World Map": "https://images.unsplash.com/photo-1524666643752-b381eb00effb?w=1920&q=80",
-    "Alphabet Blocks": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1920&q=80",
+    "Notebook Closeup": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1920&q=80",
     "Colored Pencils": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1920&q=80",
-    "Watercolors": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1920&q=80",
-    "Easel": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1920&q=80",
-    "School Trophy": "https://images.unsplash.com/photo-1494178270175-e96de2971df9?w=1920&q=80",
-    "Medal": "https://images.unsplash.com/photo-1494178270175-e96de2971df9?w=1920&q=80",
-    "Certificate": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1920&q=80",
-    "Science Fair": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1920&q=80",
-    "Robotics Club": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&q=80",
-    "Chess Club": "https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=1920&q=80",
-    "Debate Team": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1920&q=80",
-    "School Band": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=1920&q=80",
-    "Choir": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=1920&q=80",
-    "School Play": "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=1920&q=80",
-    "Career Day": "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=1920&q=80",
-    "Field Trip": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1920&q=80",
-    "School Assembly": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1920&q=80",
-    "Morning Dew": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
-    "Cloudy Sky": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Rainbow": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Lightning": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Foggy Morning": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Full Moon": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80",
-    "Solar Eclipse": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
-    "Milky Way": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
-    "Nebula": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
-    "Space Station": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80",
+    "Globe Map": "https://images.unsplash.com/photo-1524666643752-b381eb00effb?w=1920&q=80",
+    "Microscope Close": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1920&q=80",
     "Coral Reef": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
-    "Underwater": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+    "Underwater Blue": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
     "Tropical Island": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
-    "Palm Trees": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+    "Palm Trees Light": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
     "Bamboo Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
-    "Maple Trees": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Pine Forest": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
-    "Meadow": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=80",
+    "Pine Forest Dark": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
+    "Meadow Flowers": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=80",
     "Lavender Field": "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80",
-    "Sunflower Field": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=80",
+    "Sunflower Field Bright": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=80",
     "Rose Garden": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
-    "Tulip Field": "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80",
-    "Orchid": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
-    "Lotus Pond": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
-    "Zen Garden": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
-    "Koi Pond": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
-    "Pagoda": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920&q=80",
-    "Temple": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920&q=80",
-    "Castle": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80",
-    "Cathedral": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920&q=80",
-    "Mosque": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920&q=80",
-    "Bridge": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
-    "Lighthouse": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
-    "Windmill": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
+    "Tulip Field Colorful": "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80",
+    "Zen Garden Light": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80",
+    "Castle Europe": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80",
+    "Cathedral Light": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920&q=80",
+    "Bridge Water": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
+    "Lighthouse Ocean": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+    "Windmill Field": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
     "Hot Air Balloon": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
-    "Airplane Wing": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
-    "Train Tracks": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80",
-    "Vintage Car": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80",
 }
 
-# ============ EMOJI CATEGORIES ============
-EMOJI_CATEGORIES = {
-    "😀 Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😌", "😍", "🥰", "😘"],
-    "👍 Gestures": ["👍", "👎", "👌", "✌️", "🤞", "🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️", "✋", "🤚"],
-    "❤️ Hearts": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗"],
-    "📚 School": ["📚", "📖", "📝", "✏️", "🖊️", "📏", "📐", "🎓", "🏫", "📋", "📎", "🖇️", "🗂️", "📁", "📌"],
-    "🎯 Symbols": ["🎯", "⭐", "🌟", "✨", "🔥", "💯", "✅", "❌", "⚠️", "🔔", "📢", "📣", "💡", "🔑", "🔒"],
-}
+# Function to detect if wallpaper is dark or light
+def is_dark_wallpaper(wallpaper_name: str) -> bool:
+    """Determine if wallpaper is dark based on name keywords"""
+    dark_keywords = ['dark', 'night', 'black', 'space', 'galaxy', 'stars', 'northern', 
+                     'aurora', 'nebula', 'midnight', 'shadow', 'purple', 'blue abstract',
+                     'gradient', 'circuit', 'blackboard', 'underwater']
+    
+    light_keywords = ['white', 'light', 'bright', 'snow', 'beach', 'spring', 'sunflower',
+                      'minimalist', 'zen', 'cherry blossom', 'palm', 'lavender', 'tulip',
+                      'meadow', 'sunrise', 'golden', 'coral', 'tropical', 'desert']
+    
+    name_lower = wallpaper_name.lower()
+    
+    for keyword in dark_keywords:
+        if keyword in name_lower:
+            return True
+    
+    for keyword in light_keywords:
+        if keyword in name_lower:
+            return False
+    
+    # Default: most school/library wallpapers are medium-dark
+    return True
 
 # ============ HELPER FUNCTIONS ============
 def sanitize_html(text: str) -> str:
@@ -583,7 +519,6 @@ def get_current_date_display() -> str:
     day = now.day
     year = now.year
     
-    # Add ordinal suffix
     if 4 <= day <= 20 or 24 <= day <= 30:
         suffix = "th"
     else:
@@ -621,13 +556,6 @@ def get_current_term(school_name: str) -> Dict:
     finally:
         conn.close()
 
-def get_academic_year() -> str:
-    now = datetime.now()
-    if now.month >= 9:
-        return f"{now.year}-{now.year + 1}"
-    else:
-        return f"{now.year - 1}-{now.year}"
-
 def load_school_data(data_type: str, default: Any = None) -> Any:
     if not is_authenticated():
         return default if default is not None else []
@@ -657,7 +585,7 @@ def load_school_data(data_type: str, default: Any = None) -> Any:
                                     (school_name, user_email))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'students':
-            cursor = conn.execute("SELECT * FROM students WHERE school_name = ? AND is_active = 1", (school_name,))
+            cursor = conn.execute("SELECT * FROM students WHERE school_name = ? AND is_active = 1 ORDER BY form, stream, name", (school_name,))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'teachers':
             cursor = conn.execute("SELECT * FROM teachers WHERE school_name = ? AND is_active = 1", (school_name,))
@@ -707,9 +635,7 @@ def load_school_data(data_type: str, default: Any = None) -> Any:
                 (school_name,))
             return [dict(row) for row in cursor.fetchall()]
         elif data_type == 'system_settings':
-            cursor = conn.execute(
-                "SELECT * FROM system_settings WHERE school_name = ?",
-                (school_name,))
+            cursor = conn.execute("SELECT * FROM system_settings WHERE school_name = ?", (school_name,))
             row = cursor.fetchone()
             return dict(row) if row else {}
         elif data_type == 'events':
@@ -754,34 +680,79 @@ def check_duplicate_assignment(school_name: str, adm: str, item_type: str, item_
         conn.close()
     return False
 
-# ============ CSS WITH DYNAMIC TEXT CONTRAST ============
+# ============ DYNAMIC CSS BASED ON WALLPAPER BRIGHTNESS ============
 def get_premium_css(wallpaper: Optional[str] = None) -> str:
     wallpaper_url = ""
     has_wallpaper = False
+    is_dark = True
     
-    if wallpaper and wallpaper != "None":
+    if wallpaper and wallpaper != "None (Dark Gradient)":
         wallpaper_url = WALLPAPERS.get(wallpaper, "")
         if wallpaper_url:
             has_wallpaper = True
+            is_dark = is_dark_wallpaper(wallpaper)
     
+    # Dynamic colors based on wallpaper brightness
     if has_wallpaper:
+        if is_dark:
+            # Dark wallpaper - white text, dark overlays
+            bg_overlay = "rgba(0,0,0,0.65)"
+            card_bg = "rgba(0,0,0,0.7)"
+            text_color = "#FFFFFF"
+            text_shadow = "2px 2px 6px rgba(0,0,0,0.9)"
+            input_bg = "rgba(0,0,0,0.7)"
+            input_border = "rgba(255,255,255,0.3)"
+            input_text = "#FFFFFF"
+            sidebar_bg = "rgba(0,0,0,0.85)"
+            stat_card_bg = "rgba(0,0,0,0.65)"
+            dataframe_bg = "rgba(0,0,0,0.6)"
+            table_header_bg = "rgba(233,69,96,0.8)"
+            table_cell_bg = "rgba(0,0,0,0.4)"
+            muted_text = "rgba(255,255,255,0.7)"
+        else:
+            # Light/bright wallpaper - dark text, lighter overlays
+            bg_overlay = "rgba(255,255,255,0.55)"
+            card_bg = "rgba(255,255,255,0.75)"
+            text_color = "#1a1a2e"
+            text_shadow = "1px 1px 2px rgba(255,255,255,0.5)"
+            input_bg = "rgba(255,255,255,0.9)"
+            input_border = "rgba(0,0,0,0.2)"
+            input_text = "#1a1a2e"
+            sidebar_bg = "rgba(10,14,39,0.9)"
+            stat_card_bg = "rgba(255,255,255,0.7)"
+            dataframe_bg = "rgba(255,255,255,0.7)"
+            table_header_bg = "rgba(233,69,96,0.9)"
+            table_cell_bg = "rgba(255,255,255,0.6)"
+            muted_text = "rgba(0,0,0,0.6)"
+        
         bg_style = f"""
             background-image: url('{wallpaper_url}'); 
             background-size: cover; 
             background-position: center; 
             background-attachment: fixed;
         """
-        # Darker overlay for better text readability with wallpapers
-        overlay_opacity = "0.8"
-        card_bg = "rgba(0,0,0,0.75)"
-        card_border = "rgba(255,255,255,0.2)"
     else:
+        # No wallpaper - dark gradient
+        bg_overlay = "rgba(10,14,39,0.75)"
+        card_bg = "rgba(0,0,0,0.6)"
+        text_color = "#FFFFFF"
+        text_shadow = "2px 2px 8px rgba(0,0,0,0.8)"
+        input_bg = "rgba(0,0,0,0.7)"
+        input_border = "rgba(255,255,255,0.3)"
+        input_text = "#FFFFFF"
+        sidebar_bg = "rgba(0,0,0,0.9)"
+        stat_card_bg = "rgba(0,0,0,0.6)"
+        dataframe_bg = "rgba(0,0,0,0.5)"
+        table_header_bg = "rgba(233,69,96,0.8)"
+        table_cell_bg = "rgba(0,0,0,0.35)"
+        muted_text = "rgba(255,255,255,0.7)"
+        
         bg_style = """
             background: linear-gradient(135deg, #0a0e27, #1a1f4e, #0f3460);
         """
-        overlay_opacity = "0.75"
-        card_bg = "rgba(0,0,0,0.6)"
-        card_border = "rgba(212,175,55,0.25)"
+    
+    # Sidebar text is always white (dark sidebar)
+    sidebar_text = "#FFFFFF"
     
     return f"""
     <style>
@@ -790,27 +761,31 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
         
         .stApp {{ {bg_style} }}
         .stApp > header {{ 
-            background: rgba(0,0,0,0.85) !important; 
+            background: {sidebar_bg} !important; 
             backdrop-filter: blur(30px) !important; 
             border-bottom: 2px solid rgba(212,175,55,0.3) !important; 
         }}
         
         .main .block-container {{ 
-            background: rgba(0,0,0,{overlay_opacity}) !important; 
+            background: {bg_overlay} !important; 
             backdrop-filter: blur(25px) !important; 
             border-radius: 20px !important; 
             padding: 2rem !important; 
             margin: 1rem !important; 
-            border: 1px solid {card_border} !important; 
+            border: 1px solid {input_border} !important; 
         }}
         
         .main .block-container h1, .main .block-container h2, .main .block-container h3, .main .block-container h4 {{ 
-            color: #FFFFFF !important; 
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.9), 0 0 30px rgba(0,0,0,0.7) !important; 
+            color: {text_color} !important; 
+            text-shadow: {text_shadow} !important; 
+            font-weight: 700 !important;
         }}
         .main .block-container p, .main .block-container span, .main .block-container label, .main .block-container div {{ 
-            color: #FFFFFF !important; 
-            text-shadow: 1px 1px 4px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5) !important; 
+            color: {text_color} !important; 
+            text-shadow: {text_shadow} !important; 
+        }}
+        .main .block-container small, .main .block-container .caption {{ 
+            color: {muted_text} !important;
         }}
         
         .glass-card {{ 
@@ -819,43 +794,56 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
             border-radius: 16px !important; 
             padding: 25px !important; 
             margin: 15px 0 !important; 
-            border: 1px solid {card_border} !important; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important; 
+            border: 1px solid {input_border} !important; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important; 
+        }}
+        .glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4, .glass-card h5, .glass-card h6 {{
+            color: {text_color} !important;
+            text-shadow: {text_shadow} !important;
+        }}
+        .glass-card p, .glass-card span, .glass-card label, .glass-card li, .glass-card div {{
+            color: {text_color} !important;
+            text-shadow: {text_shadow} !important;
         }}
         
         .stat-card {{ 
-            background: rgba(0,0,0,0.7) !important; 
+            background: {stat_card_bg} !important; 
             backdrop-filter: blur(15px) !important; 
             padding: 20px !important; 
             border-radius: 16px !important; 
             border-left: 4px solid #e94560 !important; 
-            border: 1px solid rgba(255,255,255,0.15) !important; 
+            border: 1px solid {input_border} !important; 
             text-align: center !important; 
             margin: 8px 0 !important; 
         }}
         .stat-value {{ 
             font-size: 2.2em !important; 
             font-weight: 900 !important; 
-            color: #FFFFFF !important; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important;
+            color: {text_color} !important; 
+            text-shadow: {text_shadow} !important;
         }}
         .stat-label {{ 
-            color: rgba(255,255,255,0.95) !important; 
+            color: {muted_text} !important; 
             font-size: 0.9em !important; 
             font-weight: 600 !important; 
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.7) !important;
+            text-shadow: {text_shadow} !important;
         }}
         
-        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input, .stSelectbox > div {{ 
-            background: rgba(0,0,0,0.7) !important; 
-            border: 2px solid rgba(255,255,255,0.3) !important; 
+        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input {{ 
+            background: {input_bg} !important; 
+            border: 2px solid {input_border} !important; 
             border-radius: 10px !important; 
             padding: 10px 15px !important; 
-            color: #FFFFFF !important; 
+            color: {input_text} !important; 
             font-weight: 500 !important; 
         }}
         .stTextInput input::placeholder, .stTextArea textarea::placeholder {{ 
-            color: rgba(255,255,255,0.5) !important; 
+            color: {muted_text} !important; 
+        }}
+        .stSelectbox > div > div {{ 
+            background: {input_bg} !important;
+            color: {input_text} !important;
+            border: 2px solid {input_border} !important;
         }}
         
         .stButton button {{ 
@@ -867,7 +855,6 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
             padding: 10px 20px !important; 
             box-shadow: 0 4px 15px rgba(233,69,96,0.4) !important; 
             transition: all 0.3s ease !important; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
         }}
         .stButton button:hover {{ 
             transform: translateY(-2px) !important; 
@@ -875,24 +862,23 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
         }}
         
         .stDataFrame {{ 
-            background: rgba(0,0,0,0.7) !important; 
+            background: {dataframe_bg} !important; 
             backdrop-filter: blur(15px) !important; 
             border-radius: 12px !important; 
-            border: 1px solid rgba(255,255,255,0.2) !important; 
+            border: 1px solid {input_border} !important; 
         }}
         .stDataFrame th {{ 
-            background: rgba(233,69,96,0.8) !important; 
+            background: {table_header_bg} !important; 
             color: #FFFFFF !important; 
             font-weight: 700 !important; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
         }}
         .stDataFrame td {{ 
-            background: rgba(0,0,0,0.5) !important; 
-            color: #FFFFFF !important; 
+            background: {table_cell_bg} !important; 
+            color: {text_color} !important; 
         }}
         
         .school-code-banner {{ 
-            background: rgba(0,0,0,0.7) !important; 
+            background: {card_bg} !important; 
             backdrop-filter: blur(15px) !important; 
             border: 2px dashed rgba(233,69,96,0.4) !important; 
             border-radius: 16px !important; 
@@ -904,43 +890,56 @@ def get_premium_css(wallpaper: Optional[str] = None) -> str:
             font-size: 2.5em !important; 
             font-weight: 800 !important; 
             letter-spacing: 8px !important; 
-            color: #FFFFFF !important; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important;
+            color: {text_color} !important; 
+            text-shadow: {text_shadow} !important;
         }}
         
         .date-display {{
-            background: rgba(0,0,0,0.6) !important;
+            background: {card_bg} !important;
             backdrop-filter: blur(10px) !important;
             border-radius: 25px !important;
             padding: 8px 20px !important;
             display: inline-block !important;
             border: 1px solid rgba(212,175,55,0.3) !important;
-            color: #FFFFFF !important;
+            color: {text_color} !important;
             font-weight: 600 !important;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.7) !important;
+            text-shadow: {text_shadow} !important;
         }}
         
         section[data-testid="stSidebar"] {{ 
-            background: rgba(0,0,0,0.9) !important; 
+            background: {sidebar_bg} !important; 
             backdrop-filter: blur(20px) !important;
         }}
         section[data-testid="stSidebar"] * {{ 
-            color: #FFFFFF !important; 
-            text-shadow: 0 1px 3px rgba(0,0,0,0.7) !important; 
+            color: {sidebar_text} !important; 
+        }}
+        
+        .stTabs [data-baseweb="tab"] {{
+            color: {text_color} !important;
+        }}
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+            color: #e94560 !important;
+            border-bottom-color: #e94560 !important;
+        }}
+        
+        .stMetric label {{
+            color: {muted_text} !important;
+        }}
+        .stMetric [data-testid="stMetricValue"] {{
+            color: {text_color} !important;
         }}
         
         .returned-badge {{ background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; }}
         .active-badge {{ background: #e94560; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; }}
         .overdue-badge {{ background: #ff4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; animation: pulse 1s infinite; }}
         
-        .stTabs [data-baseweb="tab"] {{
-            color: #FFFFFF !important;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.7) !important;
+        .stExpander {{
+            background: {card_bg} !important;
+            border: 1px solid {input_border} !important;
+            border-radius: 12px !important;
         }}
-        
-        .stSelectbox label, .stTextInput label, .stDateInput label {{
-            color: #FFFFFF !important;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.7) !important;
+        .stExpander > div {{
+            color: {text_color} !important;
         }}
         
         @keyframes pulse {{
@@ -963,7 +962,7 @@ if 'school' not in st.session_state:
 if 'page' not in st.session_state:
     st.session_state.page = 'startup'
 if 'wallpaper' not in st.session_state:
-    st.session_state.wallpaper = "Library Classic"
+    st.session_state.wallpaper = "None (Dark Gradient)"  # Changed default
 if 'current_section' not in st.session_state:
     st.session_state.current_section = 'dashboard'
 if 'action' not in st.session_state:
@@ -990,7 +989,7 @@ def startup_page():
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 10px 0;">
             SRMS
         </h1>
-        <p style="font-size: 1.4em; color: #FFFFFF; margin: 10px 0;">School Resource Management System</p>
+        <p style="font-size: 1.4em; margin: 10px 0;">School Resource Management System</p>
         <p style="color: #d4af37; font-size: 1.1em;">by <span style="color: #f0d060; font-weight: 700;">WeGEM</span> (Edwin)</p>
         <div class="date-display" style="margin-top:15px;">📅 {current_date}</div>
     </div>
@@ -1027,7 +1026,7 @@ def startup_page():
         st.markdown('</div>', unsafe_allow_html=True)
 
 def login_form():
-    st.markdown('<h3 style="color:#FFFFFF;">🔐 Staff Login</h3>', unsafe_allow_html=True)
+    st.markdown('<h3>🔐 Staff Login</h3>', unsafe_allow_html=True)
     with st.form("frm_login"):
         name = st.text_input("👤 Full Name", placeholder="Enter your registered name")
         school_name = st.text_input("🏢 School Name", placeholder="Enter school name")
@@ -1089,7 +1088,7 @@ def login_form():
                 conn.close()
 
 def forgot_password_form():
-    st.markdown('<h3 style="color:#FFFFFF;">🔐 Reset Password</h3>', unsafe_allow_html=True)
+    st.markdown('<h3>🔐 Reset Password</h3>', unsafe_allow_html=True)
     with st.form("frm_forgot_password"):
         email = st.text_input("📧 Registered Email")
         school_name = st.text_input("🏢 School Name")
@@ -1117,7 +1116,7 @@ def forgot_password_form():
                     conn.close()
 
 def signup_form():
-    st.markdown('<h3 style="color:#FFFFFF;">📝 Staff Sign Up</h3>', unsafe_allow_html=True)
+    st.markdown('<h3>📝 Staff Sign Up</h3>', unsafe_allow_html=True)
     with st.form("frm_signup"):
         col1, col2 = st.columns(2)
         with col1:
@@ -1197,7 +1196,7 @@ def signup_form():
                 conn.close()
 
 def create_school_form():
-    st.markdown('<h3 style="color:#FFFFFF;">🏫 Create New School</h3>', unsafe_allow_html=True)
+    st.markdown('<h3>🏫 Create New School</h3>', unsafe_allow_html=True)
     with st.form("frm_create"):
         col1, col2 = st.columns(2)
         with col1:
@@ -1288,7 +1287,6 @@ def create_school_form():
 def dashboard_page():
     school_name = st.session_state.school['name']
     user = st.session_state.user
-    academic_year = get_academic_year()
     current_term = get_current_term(school_name)
     term_name = current_term.get('name', 'Current Term')
     current_date = get_current_date_display()
@@ -1296,10 +1294,10 @@ def dashboard_page():
     st.markdown(f"""
     <div class="glass-card" style="text-align:center;margin-bottom:25px;">
         <h1 style="font-size:2.2em;">🏫 {sanitize_html(school_name)}</h1>
-        <p style="font-size:1.1em;color:#FFFFFF;">👤 {sanitize_html(user['name'])} 
+        <p style="font-size:1.1em;">👤 {sanitize_html(user['name'])} 
         <span style="background:{'#e94560' if user['role']=='admin' else '#0f3460'};color:#FFF;padding:4px 12px;
-        border-radius:20px;font-size:0.8em;margin-left:10px;">{sanitize_html(user['role'].upper())}</span></p>
-        <p style="font-size:0.95em;color:#FFFFFF;">📅 {academic_year} | 📖 {term_name}</p>
+        border-radius:20px;font-size:0.8em;margin-left:10px;">{sanitize_html(user['role'].upper())}</span>
+        | 📖 {term_name}</p>
         <div class="date-display">📅 {current_date}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -1307,7 +1305,7 @@ def dashboard_page():
     if is_admin():
         st.markdown(f"""
         <div class="school-code-banner">
-            <p style="color:#FFF;font-size:0.9em;">🏫 School Invite Code - Share with Staff</p>
+            <p style="font-size:0.9em;">🏫 School Invite Code - Share with Staff</p>
             <div class="invite-code">{sanitize_html(st.session_state.school['invite_code'])}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1320,8 +1318,8 @@ def dashboard_page():
                  display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#0a0e27;margin-bottom:8px;">
                 {sanitize_html(user['name'][0].upper())}
             </div>
-            <p style="color:#FFFFFF;font-weight:700;margin:3px 0;text-shadow:1px 1px 3px rgba(0,0,0,0.7);">{sanitize_html(user['name'])}</p>
-            <p style="color:#d4af37;font-size:0.8em;margin:3px 0;text-shadow:1px 1px 3px rgba(0,0,0,0.7);">{sanitize_html(user['role'].upper())}</p>
+            <p style="color:#FFFFFF;font-weight:700;margin:3px 0;">{sanitize_html(user['name'])}</p>
+            <p style="color:#d4af37;font-size:0.8em;margin:3px 0;">{sanitize_html(user['role'].upper())}</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1429,9 +1427,9 @@ def dashboard_page():
             st.session_state.page = 'startup'
             st.rerun()
         
-        st.markdown('<p style="color:rgba(255,255,255,0.5);font-size:0.7em;text-align:center;">SRMS v9.0 | WeGEM | © 2025</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:rgba(255,255,255,0.5);font-size:0.7em;text-align:center;">SRMS v10.0 | WeGEM</p>', unsafe_allow_html=True)
     
-    # MAIN CONTENT
+    # MAIN CONTENT ROUTING
     section = st.session_state.get('current_section', 'dashboard')
     
     section_routes = {
@@ -1464,11 +1462,10 @@ def dashboard_page():
     if section in section_routes:
         section_routes[section]()
 
-# ============ RENDER FUNCTIONS (Core ones - rest follow same pattern) ============
+# ============ RENDER FUNCTIONS ============
 
 def render_dashboard():
     school_name = st.session_state.school['name']
-    academic_year = get_academic_year()
     current_term = get_current_term(school_name)
     term_name = current_term.get('name', 'Current Term')
     
@@ -1484,7 +1481,7 @@ def render_dashboard():
     active_furniture = len([f for f in furniture if not f.get('returned')])
     overdue_books = len([b for b in borrowed if not b.get('returned') and b.get('return_date', '') < datetime.now().strftime('%Y-%m-%d')])
     
-    st.markdown(f'<div class="glass-card"><h2>📊 Dashboard - {term_name} ({academic_year})</h2>', unsafe_allow_html=True)
+    st.markdown(f'<div class="glass-card"><h2>📊 Dashboard</h2>', unsafe_allow_html=True)
     
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
@@ -1514,19 +1511,19 @@ def render_dashboard():
             st.session_state.current_section = 'return'
             st.rerun()
     with col_c:
-        if st.button("🪑 Allocate Furniture", use_container_width=True):
+        if st.button("🪑 Furniture", use_container_width=True):
             st.session_state.current_section = 'furnitureAllocation'
             st.rerun()
     with col_d:
-        if st.button("👥 View Students", use_container_width=True):
+        if st.button("👥 Students", use_container_width=True):
             st.session_state.current_section = 'studentsDatabase'
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
     
     # Allocations by Class
-    st.markdown('<div class="glass-card"><h3>📋 Allocations by Class</h3>', unsafe_allow_html=True)
-    
     if classes:
+        st.markdown('<div class="glass-card"><h3>📋 Allocations by Class</h3>', unsafe_allow_html=True)
+        
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             class_options = ["All Classes"] + [f"{c['name']} {c.get('stream', '')}" for c in classes]
@@ -1582,10 +1579,7 @@ def render_dashboard():
                         st.dataframe(pd.DataFrame(class_furniture), use_container_width=True)
                     else:
                         st.info("No active furniture allocations")
-    else:
-        st.info("No classes found.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
     if overdue_books > 0:
         st.markdown(f'<div class="glass-card" style="border-left: 4px solid #ff4444;"><h3>⚠️ Overdue Books ({overdue_books})</h3>', unsafe_allow_html=True)
@@ -1594,8 +1588,223 @@ def render_dashboard():
             st.dataframe(pd.DataFrame(overdue_list).head(10), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+def render_students_database():
+    """COMPREHENSIVE Student Database with ALL details"""
+    school_name = st.session_state.school['name']
+    students = load_school_data('students', [])
+    classes = load_school_data('classes', [])
+    
+    st.markdown('<div class="glass-card"><h2>👥 Students Database</h2>', unsafe_allow_html=True)
+    
+    # Import students
+    with st.expander("📥 Import Students from Excel", expanded=False):
+        st.markdown("*Excel should have columns: Name, ADM, Form, Stream, Gender, DOB, Parent Name, Parent Phone, Parent Email, Address*")
+        uploaded = st.file_uploader("Upload Excel file", type=['xlsx', 'xls'], key="student_upload")
+        if uploaded:
+            try:
+                df = pd.read_excel(uploaded)
+                st.dataframe(df.head(), use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    default_form = st.text_input("Default Form (if not in file):")
+                with col2:
+                    default_stream = st.text_input("Default Stream (if not in file):")
+                
+                if st.button("💾 Import Students", use_container_width=True):
+                    conn = get_db_connection()
+                    try:
+                        count = 0
+                        for _, row in df.iterrows():
+                            adm = str(row.get('ADM', row.get('adm', generate_code('ADM'))))
+                            name = str(row.get('Name', row.get('name', '')))
+                            form = str(row.get('Form', row.get('form', default_form)))
+                            stream = str(row.get('Stream', row.get('stream', default_stream)))
+                            gender = str(row.get('Gender', row.get('gender', '')))
+                            dob = str(row.get('DOB', row.get('dob', '')))
+                            parent_name = str(row.get('Parent Name', row.get('parent_name', '')))
+                            parent_phone = str(row.get('Parent Phone', row.get('parent_phone', '')))
+                            parent_email = str(row.get('Parent Email', row.get('parent_email', '')))
+                            address = str(row.get('Address', row.get('address', '')))
+                            
+                            conn.execute(
+                                """INSERT OR REPLACE INTO students 
+                                (adm, school_name, name, form, stream, gender, dob, parent_name, parent_phone, parent_email, address, added_by, added_at, is_active)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)""",
+                                (adm, school_name, name, form, stream, gender, dob, 
+                                 parent_name, parent_phone, parent_email, address,
+                                 st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                            )
+                            count += 1
+                        conn.commit()
+                        add_audit_entry('Students Imported', f"{count} students")
+                        st.success(f"✅ Imported {count} students!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                    finally:
+                        conn.close()
+            except Exception as e:
+                st.error(f"Error reading file: {str(e)}")
+    
+    # Add individual student with ALL fields
+    with st.expander("➕ Add Individual Student", expanded=False):
+        with st.form("frm_student_full"):
+            st.markdown("### Basic Information")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                name = st.text_input("Full Name *")
+                adm = st.text_input("ADM No *")
+                gender = st.selectbox("Gender:", ["", "Male", "Female", "Other"])
+            with col2:
+                form = st.selectbox("Form/Class:", [""] + [c['name'] for c in classes])
+                stream = st.text_input("Stream:")
+                dob = st.date_input("Date of Birth:", value=None)
+            with col3:
+                religion = st.text_input("Religion:")
+                nationality = st.text_input("Nationality:")
+                enrollment_date = st.date_input("Enrollment Date:", value=datetime.now())
+            
+            st.markdown("### Parent/Guardian Information")
+            col4, col5, col6 = st.columns(3)
+            with col4:
+                parent_name = st.text_input("Parent/Guardian Name:")
+                parent_phone = st.text_input("Parent Phone:")
+            with col5:
+                parent_email = st.text_input("Parent Email:")
+                parent_occupation = st.text_input("Parent Occupation:")
+            with col6:
+                emergency_contact = st.text_input("Emergency Contact Name:")
+                emergency_phone = st.text_input("Emergency Phone:")
+            
+            st.markdown("### Additional Information")
+            col7, col8 = st.columns(2)
+            with col7:
+                address = st.text_area("Home Address:", height=68)
+                city = st.text_input("City:")
+            with col8:
+                postal_code = st.text_input("Postal Code:")
+                previous_school = st.text_input("Previous School:")
+                kcpe_marks = st.text_input("KCPE Marks (if applicable):")
+            
+            col9, col10 = st.columns(2)
+            with col9:
+                medical_info = st.text_area("Medical Information:", height=68)
+            with col10:
+                special_needs = st.text_area("Special Needs:", height=68)
+            
+            if st.form_submit_button("➕ Add Student", use_container_width=True, type="primary"):
+                if name and adm:
+                    conn = get_db_connection()
+                    try:
+                        conn.execute(
+                            """INSERT OR REPLACE INTO students 
+                            (adm, school_name, name, form, stream, gender, dob, 
+                             parent_name, parent_phone, parent_email, parent_occupation,
+                             address, city, postal_code, medical_info, enrollment_date,
+                             previous_school, religion, nationality, kcpe_marks, special_needs,
+                             emergency_contact, emergency_phone, added_by, added_at, updated_at, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)""",
+                            (adm, school_name, name, form, stream, gender, 
+                             dob.strftime('%Y-%m-%d') if dob else '',
+                             parent_name, parent_phone, parent_email, parent_occupation,
+                             address, city, postal_code, medical_info,
+                             enrollment_date.strftime('%Y-%m-%d') if enrollment_date else '',
+                             previous_school, religion, nationality, kcpe_marks, special_needs,
+                             emergency_contact, emergency_phone,
+                             st.session_state.user['name'], 
+                             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                             datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                        )
+                        conn.commit()
+                        add_audit_entry('Student Added', f"{name} ({adm})")
+                        st.success("✅ Student added successfully!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                    finally:
+                        conn.close()
+                else:
+                    st.error("Name and ADM are required!")
+    
+    # Display students with filters
+    if students:
+        st.markdown(f"### 📋 Student Records ({len(students)} students)")
+        
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            forms = ["All"] + sorted(list(set(s.get('form', '') for s in students if s.get('form'))))
+            filter_form = st.selectbox("Filter Form:", forms, key="stu_form")
+        with col_f2:
+            streams = ["All"] + sorted(list(set(s.get('stream', '') for s in students if s.get('stream'))))
+            filter_stream = st.selectbox("Filter Stream:", streams, key="stu_stream")
+        with col_f3:
+            search_student = st.text_input("🔍 Search:", placeholder="Name, ADM, or parent name", key="stu_search")
+        
+        filtered = students
+        if filter_form != "All":
+            filtered = [s for s in filtered if s.get('form') == filter_form]
+        if filter_stream != "All":
+            filtered = [s for s in filtered if s.get('stream') == filter_stream]
+        if search_student:
+            q = search_student.lower()
+            filtered = [s for s in filtered if q in s.get('name', '').lower() or 
+                       q in s.get('adm', '').lower() or 
+                       q in s.get('parent_name', '').lower()]
+        
+        st.markdown(f"*Showing {len(filtered)} of {len(students)} students*")
+        
+        # Display as expandable cards
+        for student in filtered[:50]:  # Limit to 50 for performance
+            with st.expander(f"👤 {sanitize_html(student.get('name', 'Unknown'))} - {student.get('adm', '')} | {student.get('form', '')} {student.get('stream', '')}"):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown(f"**ADM:** {student.get('adm', '-')}")
+                    st.markdown(f"**Gender:** {student.get('gender', '-')}")
+                    st.markdown(f"**Form:** {student.get('form', '-')}")
+                    st.markdown(f"**Stream:** {student.get('stream', '-')}")
+                    st.markdown(f"**DOB:** {student.get('dob', '-')}")
+                with col2:
+                    st.markdown(f"**Parent:** {student.get('parent_name', '-')}")
+                    st.markdown(f"**Parent Phone:** {student.get('parent_phone', '-')}")
+                    st.markdown(f"**Parent Email:** {student.get('parent_email', '-')}")
+                    st.markdown(f"**Parent Occupation:** {student.get('parent_occupation', '-')}")
+                with col3:
+                    st.markdown(f"**Address:** {student.get('address', '-')}")
+                    st.markdown(f"**City:** {student.get('city', '-')}")
+                    st.markdown(f"**Religion:** {student.get('religion', '-')}")
+                    st.markdown(f"**Nationality:** {student.get('nationality', '-')}")
+                    st.markdown(f"**Enrollment:** {student.get('enrollment_date', '-')}")
+                
+                st.markdown(f"**Medical Info:** {student.get('medical_info', 'None')}")
+                st.markdown(f"**Special Needs:** {student.get('special_needs', 'None')}")
+                st.markdown(f"**Emergency Contact:** {student.get('emergency_contact', '-')} - {student.get('emergency_phone', '-')}")
+                st.caption(f"Added by: {student.get('added_by', '-')} on {student.get('added_at', '-')[:10]}")
+        
+        # Export
+        if st.button("📥 Export All Students to Excel", use_container_width=True):
+            df = pd.DataFrame(students)
+            towrite = BytesIO()
+            df.to_excel(towrite, index=False, engine='openpyxl')
+            towrite.seek(0)
+            b64 = base64.b64encode(towrite.read()).decode()
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="students_database.xlsx">📥 Download Excel File</a>', unsafe_allow_html=True)
+    else:
+        st.info("No students in the database. Add students using the options above.")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# [Rest of the render functions remain the same as previous working version]
+# Including: render_catalog, render_book_issuing, render_individual_lending, 
+# render_furniture_allocation, render_furniture_records, render_returns,
+# render_borrowed_records, render_teachers, render_classes, render_academic_terms,
+# render_qr, render_chat, render_forum, render_notepad, render_system_overview,
+# render_audit_log, render_reports, render_events, render_fees, render_timetable,
+# render_settings, render_database_manager
+
+# I'll include the critical ones that were fixed:
+
 def render_catalog():
-    """Fixed book catalog"""
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
     
@@ -1631,7 +1840,6 @@ def render_catalog():
                             (qty, qty, existing['id'])
                         )
                     else:
-                        # FIXED: Match exact column count (11 columns)
                         conn.execute(
                             """INSERT INTO books (school_name, title, author, isbn, type, subject, quantity, available, location, created_by, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -1681,119 +1889,7 @@ def render_catalog():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-def render_students_database():
-    """Student database"""
-    school_name = st.session_state.school['name']
-    students = load_school_data('students', [])
-    
-    st.markdown('<div class="glass-card"><h2>👥 Students Database</h2>', unsafe_allow_html=True)
-    
-    with st.expander("📥 Import Students", expanded=False):
-        uploaded = st.file_uploader("Upload Excel", type=['xlsx', 'xls'])
-        if uploaded:
-            try:
-                df = pd.read_excel(uploaded)
-                st.dataframe(df.head(), use_container_width=True)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    form = st.text_input("Form/Class:")
-                with col2:
-                    stream = st.text_input("Stream:")
-                
-                if st.button("💾 Import", use_container_width=True):
-                    conn = get_db_connection()
-                    try:
-                        count = 0
-                        for _, row in df.iterrows():
-                            adm = str(row.get('ADM', row.get('adm', generate_code('ADM'))))
-                            name = str(row.get('Name', row.get('name', '')))
-                            gender = str(row.get('Gender', row.get('gender', '')))
-                            conn.execute(
-                                """INSERT OR REPLACE INTO students (adm, school_name, name, form, stream, gender, added_by, added_at, is_active)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)""",
-                                (adm, school_name, name, form, stream, gender, 
-                                 st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                            )
-                            count += 1
-                        conn.commit()
-                        add_audit_entry('Students Imported', f"{count} students")
-                        st.success(f"✅ Imported {count} students!")
-                        st.rerun()
-                    finally:
-                        conn.close()
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-    
-    with st.expander("➕ Add Student", expanded=False):
-        with st.form("frm_student"):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                name = st.text_input("Full Name:")
-                adm = st.text_input("ADM No:")
-                gender = st.selectbox("Gender:", ["Male", "Female", "Other"])
-            with col2:
-                form = st.text_input("Form/Class:")
-                stream = st.text_input("Stream:")
-                dob = st.date_input("Date of Birth:", value=None)
-            with col3:
-                parent_name = st.text_input("Parent/Guardian:")
-                parent_phone = st.text_input("Parent Phone:")
-                parent_email = st.text_input("Parent Email:")
-            
-            if st.form_submit_button("➕ Add", use_container_width=True):
-                if name and adm:
-                    conn = get_db_connection()
-                    try:
-                        conn.execute(
-                            """INSERT OR REPLACE INTO students (adm, school_name, name, form, stream, gender, dob, 
-                            parent_name, parent_phone, parent_email, added_by, added_at, is_active)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)""",
-                            (adm, school_name, name, form, stream, gender, 
-                             dob.strftime('%Y-%m-%d') if dob else '',
-                             parent_name, parent_phone, parent_email,
-                             st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                        )
-                        conn.commit()
-                        st.success("✅ Added!")
-                        st.rerun()
-                    finally:
-                        conn.close()
-    
-    if students:
-        col_f1, col_f2, col_f3 = st.columns(3)
-        with col_f1:
-            filter_form = st.selectbox("Form:", ["All"] + list(set(s.get('form', '') for s in students if s.get('form'))), key="stu_form")
-        with col_f2:
-            filter_stream = st.selectbox("Stream:", ["All"] + list(set(s.get('stream', '') for s in students if s.get('stream'))), key="stu_stream")
-        with col_f3:
-            search_student = st.text_input("🔍 Search:", placeholder="Name or ADM")
-        
-        filtered = students
-        if filter_form != "All":
-            filtered = [s for s in filtered if s.get('form') == filter_form]
-        if filter_stream != "All":
-            filtered = [s for s in filtered if s.get('stream') == filter_stream]
-        if search_student:
-            q = search_student.lower()
-            filtered = [s for s in filtered if q in s.get('name', '').lower() or q in s.get('adm', '').lower()]
-        
-        st.dataframe(pd.DataFrame(filtered), use_container_width=True)
-        
-        if st.button("📥 Export", use_container_width=True):
-            df = pd.DataFrame(filtered)
-            towrite = BytesIO()
-            df.to_excel(towrite, index=False, engine='openpyxl')
-            towrite.seek(0)
-            b64 = base64.b64encode(towrite.read()).decode()
-            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="students.xlsx">📥 Download</a>', unsafe_allow_html=True)
-    else:
-        st.info("No students")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
 def render_returns():
-    """Return items"""
     school_name = st.session_state.school['name']
     classes = load_school_data('classes', [])
     user_email = st.session_state.user['email']
@@ -1918,7 +2014,6 @@ def render_returns():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_borrowed_records():
-    """Borrowed records with return button"""
     school_name = st.session_state.school['name']
     borrowed = load_school_data('borrowed', [])
     classes = load_school_data('classes', [])
@@ -1990,24 +2085,23 @@ def render_borrowed_records():
                             conn.close()
             st.divider()
         
-        if st.button("📥 Export", use_container_width=True):
+        if st.button("📥 Export to Excel", use_container_width=True):
             df = pd.DataFrame(filtered)
             towrite = BytesIO()
             df.to_excel(towrite, index=False, engine='openpyxl')
             towrite.seek(0)
             b64 = base64.b64encode(towrite.read()).decode()
-            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed.xlsx">📥 Download</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="borrowed_records.xlsx">📥 Download Excel</a>', unsafe_allow_html=True)
     else:
         st.info("No records found")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Simplified render functions for remaining features
+# Include remaining essential render functions
 def render_book_issuing():
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
     classes = load_school_data('classes', [])
-    academic_year = get_academic_year()
     current_term = get_current_term(school_name)
     user = st.session_state.user
     
@@ -2073,13 +2167,13 @@ def render_book_issuing():
                             
                             conn.execute(
                                 """INSERT INTO borrowed (id, school_name, student_name, adm, form, stream, 
-                                book_title, book_no, borrow_date, return_date, returned, issued_by, issued_by_email, academic_year, term)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
+                                book_title, book_no, borrow_date, return_date, returned, issued_by, issued_by_email, term)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)""",
                                 (generate_code("BOR"), school_name, str(row['Name']), adm,
                                  selected_class['name'], selected_class.get('stream', ''),
                                  selected_book, book_no,
                                  issue_date.strftime('%Y-%m-%d'), return_date.strftime('%Y-%m-%d'),
-                                 user['name'], user['email'], academic_year, term_name)
+                                 user['name'], user['email'], term_name)
                             )
                             
                             conn.execute(
@@ -2102,7 +2196,6 @@ def render_individual_lending():
     school_name = st.session_state.school['name']
     books = load_school_data('books', [])
     classes = load_school_data('classes', [])
-    academic_year = get_academic_year()
     current_term = get_current_term(school_name)
     user = st.session_state.user
     
@@ -2137,12 +2230,12 @@ def render_individual_lending():
                     try:
                         conn.execute(
                             """INSERT INTO borrowed (id, school_name, student_name, adm, form, stream, 
-                            book_title, book_no, borrow_date, return_date, returned, issued_by, issued_by_email, academic_year, term)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
+                            book_title, book_no, borrow_date, return_date, returned, issued_by, issued_by_email, term)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)""",
                             (generate_code("BOR"), school_name, name, adm, form, stream,
                              selected_book, book_no,
                              borrow_date.strftime('%Y-%m-%d'), return_date.strftime('%Y-%m-%d'),
-                             user['name'], user['email'], academic_year, term_name)
+                             user['name'], user['email'], term_name)
                         )
                         conn.execute(
                             "UPDATE books SET available = available - 1 WHERE school_name = ? AND title = ? AND available > 0",
@@ -2160,7 +2253,6 @@ def render_individual_lending():
 def render_furniture_allocation():
     school_name = st.session_state.school['name']
     classes = load_school_data('classes', [])
-    academic_year = get_academic_year()
     current_term = get_current_term(school_name)
     user = st.session_state.user
     
@@ -2229,13 +2321,13 @@ def render_furniture_allocation():
                         
                         conn.execute(
                             """INSERT INTO furniture (id, school_name, student_name, adm, form, stream,
-                            chair_no, locker_no, allocation_date, returned, issued_by, issued_by_email, academic_year, term)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
+                            chair_no, locker_no, allocation_date, returned, issued_by, issued_by_email, term)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)""",
                             (generate_code("FUR"), school_name, str(row['Name']), adm,
                              selected_class['name'], selected_class.get('stream', ''),
                              chair_no, str(row['Locker No']),
                              allocation_date.strftime('%Y-%m-%d'),
-                             user['name'], user['email'], academic_year, term_name)
+                             user['name'], user['email'], term_name)
                         )
                         allocated += 1
                 
@@ -2303,16 +2395,16 @@ def render_teachers():
             email = st.text_input("Email:")
         with col2:
             subjects = st.text_input("Subjects:")
-            classes = st.text_input("Classes:")
+            classes_taught = st.text_input("Classes:")
         
-        if st.form_submit_button("➕ Add", use_container_width=True):
+        if st.form_submit_button("➕ Add Teacher", use_container_width=True):
             if name:
                 conn = get_db_connection()
                 try:
                     conn.execute(
                         """INSERT INTO teachers (id, school_name, name, email, subjects, classes, added_by, is_active)
                         VALUES (?, ?, ?, ?, ?, ?, ?, 1)""",
-                        (generate_code("TCH"), school_name, name, email, subjects, classes, 
+                        (generate_code("TCH"), school_name, name, email, subjects, classes_taught, 
                          st.session_state.user['name'])
                     )
                     conn.commit()
@@ -2346,15 +2438,15 @@ def render_classes():
             with col2:
                 stream = st.text_input("Stream:")
             
-            if st.button("💾 Save", use_container_width=True):
+            if st.button("💾 Save Class", use_container_width=True):
                 if class_name:
                     students = [{col: str(row[col]) if not pd.isna(row[col]) else "" for col in df.columns} for _, row in df.iterrows()]
                     conn = get_db_connection()
                     try:
                         conn.execute(
-                            "INSERT INTO classes (school_name, name, stream, students, created_by, created, academic_year, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+                            "INSERT INTO classes (school_name, name, stream, students, created_by, created, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)",
                             (school_name, class_name, stream, json.dumps(students), 
-                             st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d"), get_academic_year())
+                             st.session_state.user['name'], datetime.now().strftime("%Y-%m-%d"))
                         )
                         conn.commit()
                         st.success("✅ Saved!")
@@ -2748,10 +2840,10 @@ def render_fees():
                 conn = get_db_connection()
                 try:
                     conn.execute(
-                        """INSERT OR REPLACE INTO fees (id, school_name, student_adm, student_name, form, amount, paid, balance, term, academic_year, last_payment_date, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        """INSERT OR REPLACE INTO fees (id, school_name, student_adm, student_name, form, amount, paid, balance, term, last_payment_date, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (generate_code("FEE"), school_name, student_adm, student_name, '',
-                         amount, paid, balance, term, get_academic_year(),
+                         amount, paid, balance, term,
                          payment_date.strftime('%Y-%m-%d'), 'completed' if balance <= 0 else 'partial')
                     )
                     conn.commit()
@@ -2906,7 +2998,7 @@ def render_settings():
         render_academic_terms()
     
     with tab3:
-        if st.button("📥 Backup", use_container_width=True):
+        if st.button("📥 Backup Data", use_container_width=True):
             conn = get_db_connection()
             try:
                 tables = ['schools', 'users', 'books', 'borrowed', 'furniture', 'students', 'teachers', 'classes', 'audit_log']
@@ -2937,8 +3029,7 @@ def render_database_manager():
         "Schools": "schools", "Users": "users", "Books": "books",
         "Borrowed": "borrowed", "Furniture": "furniture", "Students": "students",
         "Teachers": "teachers", "Classes": "classes", "Terms": "academic_terms",
-        "Audit Log": "audit_log", "Chat": "chat_messages", "Forum": "forum_messages",
-        "Events": "events", "Fees": "fees", "Timetable": "timetable"
+        "Audit Log": "audit_log", "Events": "events", "Fees": "fees", "Timetable": "timetable"
     }
     
     selected = st.selectbox("Table:", list(tables.keys()))
